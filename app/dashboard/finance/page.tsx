@@ -5,6 +5,7 @@ import { BalanceCard } from '@/components/ui/balance-card'
 import { TRANSACTIONS, KPI } from '@/lib/mock-data'
 import { formatCurrency, formatRelativeDate } from '@/lib/utils'
 import type { TransactionType } from '@/lib/types'
+import { AddTransactionModal } from '@/components/ui/add-transaction-modal'
 
 const TX_TYPES = ['all', 'income', 'payment_received', 'expense', 'transfer'] as const
 type FilterType = typeof TX_TYPES[number]
@@ -15,6 +16,7 @@ const TYPE_LABEL: Record<TransactionType | 'all', string> = {
 
 export default function FinancePage() {
   const [filter, setFilter] = useState<FilterType>('all')
+  const [txModalOpen, setTxModalOpen] = useState(false)
   const filtered = filter === 'all' ? TRANSACTIONS : TRANSACTIONS.filter((t) => t.type === filter)
 
   return (
@@ -25,7 +27,7 @@ export default function FinancePage() {
           <h1 className="font-display font-bold text-[20px] leading-tight" style={{ color: "var(--text-primary)" }}>Finance</h1>
           <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>Transactions & account balances</p>
         </div>
-        <button className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
+        <button onClick={() => setTxModalOpen(true)} className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
           + Add Transaction
         </button>
       </div>
@@ -96,6 +98,8 @@ export default function FinancePage() {
           )
         })}
       </div>
+
+      <AddTransactionModal open={txModalOpen} onClose={() => setTxModalOpen(false)} />
     </div>
   )
 }

@@ -1,5 +1,9 @@
+'use client'
+
+import { useState } from 'react'
 import { CONTACTS } from '@/lib/mock-data'
 import { getInitials, formatDate } from '@/lib/utils'
+import { AddContactModal } from '@/components/ui/add-contact-modal'
 
 const TAG_TONE: Record<string, { bg: string; color: string }> = {
   client:     { bg: "var(--badge-info-bg)",    color: "var(--badge-info-text)" },
@@ -11,6 +15,8 @@ const TAG_TONE: Record<string, { bg: string; color: string }> = {
 }
 
 export default function ContactsPage() {
+  const [contactModalOpen, setContactModalOpen] = useState(false)
+
   return (
     <div className="space-y-4">
       {/* Page title */}
@@ -19,7 +25,10 @@ export default function ContactsPage() {
           <h1 className="font-display font-bold text-[20px] leading-tight" style={{ color: "var(--text-primary)" }}>Contacts</h1>
           <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>{CONTACTS.length} contacts</p>
         </div>
-        <button className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
+        <button
+          onClick={() => setContactModalOpen(true)}
+          className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl"
+        >
           + Add Contact
         </button>
       </div>
@@ -30,7 +39,6 @@ export default function ContactsPage() {
       >
         {CONTACTS.map((contact) => (
           <div key={contact.id} className="flex items-start gap-4 px-4 py-4 trow">
-            {/* Avatar */}
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center font-display font-bold text-white text-[12px] shrink-0 mt-0.5"
               style={{ background: "linear-gradient(135deg, var(--oa-navy) 0%, var(--brand-strong) 100%)" }}
@@ -38,7 +46,6 @@ export default function ContactsPage() {
               {getInitials(contact.name)}
             </div>
 
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-[14px] leading-tight" style={{ color: "var(--text-primary)" }}>{contact.name}</p>
               {contact.company && (
@@ -63,7 +70,6 @@ export default function ContactsPage() {
               )}
             </div>
 
-            {/* Contact details */}
             <div className="text-right shrink-0 space-y-1">
               {contact.email && (
                 <a href={`mailto:${contact.email}`} className="block text-[11.5px] hover:underline" style={{ color: "var(--brand)" }}>
@@ -80,6 +86,8 @@ export default function ContactsPage() {
           </div>
         ))}
       </div>
+
+      <AddContactModal open={contactModalOpen} onClose={() => setContactModalOpen(false)} />
     </div>
   )
 }
