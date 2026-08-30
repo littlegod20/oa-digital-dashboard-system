@@ -1,51 +1,55 @@
-import { Header } from '@/components/dashboard/header'
 import { TEAM } from '@/lib/mock-data'
 import { formatCurrency, getInitials } from '@/lib/utils'
 
 export default function TeamPage() {
   return (
-    <>
-      <Header
-        title="Team"
-        subtitle={`${TEAM.length} members`}
-        action={
-          <button className="bg-gradient-to-r from-[var(--blue)] to-[var(--cyan)] text-white text-[13px] font-bold px-4 py-2 rounded-xl shadow-[0_3px_10px_rgba(29,95,209,.35)]">
-            + Add Member
-          </button>
-        }
-      />
+    <div className="space-y-4">
+      {/* Page title */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display font-bold text-[20px] leading-tight" style={{ color: "var(--text-primary)" }}>Team</h1>
+          <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>{TEAM.length} members</p>
+        </div>
+        <button className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
+          + Add Member
+        </button>
+      </div>
 
       <div className="space-y-3">
         {TEAM.map((member) => (
           <div
             key={member.id}
-            className="bg-[var(--card)] rounded-2xl p-4 shadow-[var(--shadow)] flex items-center gap-4"
+            className="rounded-2xl p-4 flex items-center gap-4 trow transition-colors"
+            style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}
           >
             {/* Avatar */}
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--blue)] to-[var(--cyan)] flex items-center justify-center font-display font-bold text-white text-[15px] shrink-0">
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center font-display font-bold text-white text-[14px] shrink-0"
+              style={{ background: "var(--brand-strong)" }}
+            >
               {getInitials(member.name)}
             </div>
 
             {/* Info */}
             <div className="flex-1 min-w-0">
-              <p className="font-bold text-[var(--navy)] text-[14.5px] leading-tight">{member.name}</p>
-              <p className="text-[12.5px] text-[var(--slate)] mt-0.5">{member.role}</p>
-              <p className="text-[11.5px] text-[var(--blue)] mt-1">{member.email}</p>
+              <p className="font-semibold text-[14px] leading-tight" style={{ color: "var(--text-primary)" }}>{member.name}</p>
+              <p className="text-[12.5px] mt-0.5" style={{ color: "var(--text-secondary)" }}>{member.role}</p>
+              <p className="text-[11.5px] mt-0.5" style={{ color: "var(--brand)" }}>{member.email}</p>
             </div>
 
             {/* Stats */}
             <div className="text-right shrink-0">
-              <p className="font-display font-bold text-[var(--navy)] text-[15px]">
+              <p className="font-display font-bold text-[15px]" style={{ color: "var(--text-primary)" }}>
                 {member.activeDeals}
               </p>
-              <p className="text-[10.5px] text-[var(--slate)]">active deals</p>
-              <p className="font-semibold text-[var(--green)] text-[12px] mt-0.5">
+              <p className="text-[10.5px]" style={{ color: "var(--text-muted)" }}>active deals</p>
+              <p className="font-medium text-[12px] mt-0.5" style={{ color: "var(--badge-success-text)" }}>
                 {formatCurrency(member.totalRevenue, 'GHS')}
               </p>
             </div>
           </div>
         ))}
       </div>
-    </>
+    </div>
   )
 }

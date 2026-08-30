@@ -1,29 +1,53 @@
-import { PhaseBadge } from './phase-badge'
-import { formatCurrency } from '@/lib/utils'
-import type { Deal } from '@/lib/types'
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import type { BadgeTone } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils";
+import type { Deal } from "@/lib/types";
+import { PHASE_META } from "@/lib/types";
+import { ChevronRight } from "lucide-react";
 
 interface PipelineCardProps {
-  deal: Deal
+  deal: Deal;
 }
 
+const PHASE_TONE: Record<string, BadgeTone> = {
+  lead:     "neutral",
+  proposal: "info",
+  await:    "warning",
+  meet:     "info",
+  action:   "warning",
+  progress: "success",
+  done:     "success",
+  hold:     "neutral",
+};
+
 export function PipelineCard({ deal }: PipelineCardProps) {
-  const outstanding = deal.value - deal.paid
-  const progress = deal.value > 0 ? (deal.paid / deal.value) * 100 : 0
+  const outstanding = deal.value - deal.paid;
+  const progress = deal.value > 0 ? (deal.paid / deal.value) * 100 : 0;
+  const phaseMeta = PHASE_META[deal.phase];
+  const tone = PHASE_TONE[deal.phase] ?? "neutral";
 
   return (
-    <div className="bg-[var(--card)] rounded-2xl p-4 shadow-[var(--shadow)] space-y-3">
+    <Card className="p-4 space-y-3">
       {/* Top row */}
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-bold text-[var(--navy)] text-[15px] leading-tight">{deal.client}</p>
-          <p className="text-[var(--slate)] text-[12.5px] mt-0.5">{deal.title}</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold text-[14px] leading-tight" style={{ color: "var(--text-primary)" }}>
+              {deal.client}
+            </p>
+            <Badge tone={tone} dot>{phaseMeta.label}</Badge>
+          </div>
+          <p className="text-[12.5px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+            {deal.title}
+          </p>
         </div>
         <div className="text-right shrink-0">
-          <p className="font-display font-bold text-[16px] text-[var(--navy)]">
+          <p className="font-display font-bold text-[15px]" style={{ color: "var(--text-primary)" }}>
             {formatCurrency(deal.value, deal.currency)}
           </p>
           {outstanding > 0 && (
-            <p className="text-[11px] text-[var(--slate)] mt-0.5">
+            <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
               {formatCurrency(outstanding, deal.currency)} remaining
             </p>
           )}
@@ -31,34 +55,47 @@ export function PipelineCard({ deal }: PipelineCardProps) {
       </div>
 
       {/* Progress bar */}
-      {deal.paid > 0 && (
-        <div>
-          <div className="h-1.5 bg-[var(--line)] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-[var(--green)] rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-[10.5px] text-[var(--slate)] mt-1">
-            {formatCurrency(deal.paid, deal.currency)} paid ({progress.toFixed(0)}%)
-          </p>
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+            Collected {progress.toFixed(0)}%
+          </span>
+          <span className="text-[11px]" style={{ color: "var(--badge-success-text)" }}>
+            {formatCurrency(deal.paid, deal.currency)}
+          </span>
         </div>
-      )}
-
-      {/* Meta row */}
-      <div className="flex flex-wrap items-center gap-2">
-        <PhaseBadge phase={deal.phase} />
-        <span className="text-[11.5px] font-semibold text-[var(--blue)] bg-[#EAF1FF] px-2.5 py-1 rounded-full">
-          {deal.assignee}
-        </span>
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--progress-bg)" }}>
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${progress}%`,
+              background: progress >= 100
+                ? "var(--badge-success-text)"
+                : progress > 50
+                ? "var(--oa-blue)"
+                : "var(--oa-amber)",
+            }}
+          />
+        </div>
       </div>
 
       {/* Next action */}
       {deal.nextAction && (
-        <div className="text-[12px] text-[var(--ink)] bg-[var(--bg)] border-l-[3px] border-[var(--cyan)] pl-2.5 py-1.5 rounded-r-lg">
-          {deal.nextAction}
+        <div
+          className="flex items-center gap-2 rounded-xl px-3 py-2"
+          style={{ background: "var(--input-bg)" }}
+        >
+          <ChevronRight className="size-3.5 shrink-0" style={{ color: "var(--brand)" }} />
+          <p className="text-[12px] flex-1 truncate" style={{ color: "var(--text-secondary)" }}>
+            {deal.nextAction}
+          </p>
+          {deal.nextActionDate && (
+            <span className="text-[11px] shrink-0" style={{ color: "var(--text-muted)" }}>
+              {new Date(deal.nextActionDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+            </span>
+          )}
         </div>
       )}
-    </div>
-  )
+    </Card>
+  );
 }

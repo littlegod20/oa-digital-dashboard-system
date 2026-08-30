@@ -1,73 +1,67 @@
 'use client'
 
 import { useState } from 'react'
-import { Header } from '@/components/dashboard/header'
 import { BalanceCard } from '@/components/ui/balance-card'
 import { TRANSACTIONS, KPI } from '@/lib/mock-data'
 import { formatCurrency, formatRelativeDate } from '@/lib/utils'
 import type { TransactionType } from '@/lib/types'
-import { cn } from '@/lib/utils'
 
 const TX_TYPES = ['all', 'income', 'payment_received', 'expense', 'transfer'] as const
 type FilterType = typeof TX_TYPES[number]
 
 const TYPE_LABEL: Record<TransactionType | 'all', string> = {
-  all:               'All',
-  income:            'Income',
-  payment_received:  'Received',
-  expense:           'Expense',
-  transfer:          'Transfer',
+  all: 'All', income: 'Income', payment_received: 'Received', expense: 'Expense', transfer: 'Transfer',
 }
 
 export default function FinancePage() {
   const [filter, setFilter] = useState<FilterType>('all')
-
   const filtered = filter === 'all' ? TRANSACTIONS : TRANSACTIONS.filter((t) => t.type === filter)
 
   return (
-    <>
-      <Header
-        title="Finance"
-        subtitle="Transactions & account balances"
-        action={
-          <button className="bg-gradient-to-r from-[var(--blue)] to-[var(--cyan)] text-white text-[13px] font-bold px-4 py-2 rounded-xl shadow-[0_3px_10px_rgba(29,95,209,.35)]">
-            + Add Transaction
-          </button>
-        }
-      />
+    <div className="space-y-5">
+      {/* Page title */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="font-display font-bold text-[20px] leading-tight" style={{ color: "var(--text-primary)" }}>Finance</h1>
+          <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>Transactions & account balances</p>
+        </div>
+        <button className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
+          + Add Transaction
+        </button>
+      </div>
 
       {/* Balance cards */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
+      <div className="grid grid-cols-2 gap-3">
         <BalanceCard currency="GHS" balance={KPI.balanceGHS} label="Cedis Account" />
         <BalanceCard currency="USD" balance={KPI.balanceUSD} label="Dollar Account" />
       </div>
 
       {/* Summary row */}
-      <div className="grid grid-cols-3 gap-2.5 mb-5">
+      <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Revenue', value: formatCurrency(KPI.revenueGHS, 'GHS'), color: 'var(--green)' },
-          { label: 'Expenses', value: formatCurrency(KPI.expensesGHS, 'GHS'), color: 'var(--red)' },
-          { label: 'Profit', value: formatCurrency(KPI.profitGHS, 'GHS'), color: 'var(--blue)' },
+          { label: 'Revenue',  value: formatCurrency(KPI.revenueGHS,  'GHS'), color: "var(--badge-success-text)" },
+          { label: 'Expenses', value: formatCurrency(KPI.expensesGHS, 'GHS'), color: "var(--badge-danger-text)" },
+          { label: 'Profit',   value: formatCurrency(KPI.profitGHS,   'GHS'), color: "var(--brand)" },
         ].map(({ label, value, color }) => (
-          <div key={label} className="bg-[var(--card)] rounded-xl px-3 py-3 shadow-[var(--shadow)]">
-            <p className="text-[10.5px] font-bold text-[var(--slate)] uppercase tracking-wider">{label}</p>
+          <div key={label} className="rounded-xl px-4 py-3" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
+            <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
             <p className="font-display font-bold text-[15px] mt-1" style={{ color }}>{value}</p>
           </div>
         ))}
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 overflow-x-auto pb-1 mb-3 -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {TX_TYPES.map((type) => (
           <button
             key={type}
             onClick={() => setFilter(type)}
-            className={cn(
-              'whitespace-nowrap text-[12.5px] font-semibold px-3.5 py-1.5 rounded-full border transition-colors shrink-0',
-              filter === type
-                ? 'bg-[var(--navy)] text-white border-[var(--navy)]'
-                : 'bg-white text-[var(--slate)] border-[var(--line)]'
-            )}
+            className="whitespace-nowrap text-[12.5px] font-medium px-3.5 py-1.5 rounded-full border shrink-0 transition-colors"
+            style={{
+              background: filter === type ? "var(--brand-strong)" : "var(--card-bg)",
+              color: filter === type ? "var(--brand-on)" : "var(--text-secondary)",
+              borderColor: filter === type ? "var(--brand-strong)" : "var(--divider)",
+            }}
           >
             {TYPE_LABEL[type]}
           </button>
@@ -75,46 +69,33 @@ export default function FinancePage() {
       </div>
 
       {/* Transaction list */}
-      <div className="bg-[var(--card)] rounded-2xl shadow-[var(--shadow)] divide-y divide-[var(--line)]">
+      <div className="rounded-2xl overflow-hidden divide-y" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderColor: "var(--divider)" }}>
         {filtered.length === 0 ? (
-          <p className="text-center text-[var(--slate)] text-[13.5px] py-12">No transactions.</p>
-        ) : (
-          filtered.map((tx) => {
-            const isIn = tx.type === 'income' || tx.type === 'payment_received'
-            const isTransfer = tx.type === 'transfer'
-            return (
-              <div key={tx.id} className="flex items-center gap-3 px-4 py-4">
-                {/* Icon */}
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
-                  style={{
-                    background: isIn ? '#E3F6EE' : isTransfer ? '#EAF1FF' : '#FFE9E9',
-                    color: isIn ? 'var(--green)' : isTransfer ? 'var(--blue)' : 'var(--red)',
-                  }}
-                >
-                  {isIn ? '↓' : isTransfer ? '⇄' : '↑'}
-                </div>
-                {/* Details */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[var(--ink)] text-[13.5px] truncate">{tx.description}</p>
-                  <p className="text-[11.5px] text-[var(--slate)] mt-0.5">
-                    {tx.category}
-                    {tx.person ? ` · ${tx.person}` : ''}
-                    {' · '}{formatRelativeDate(tx.date)}
-                  </p>
-                </div>
-                {/* Amount */}
-                <p
-                  className="font-bold text-[14px] whitespace-nowrap"
-                  style={{ color: isIn ? 'var(--green)' : isTransfer ? 'var(--blue)' : 'var(--red)' }}
-                >
-                  {isIn ? '+' : isTransfer ? '' : '-'}{formatCurrency(tx.amount, tx.currency)}
+          <p className="text-center py-12 text-[13.5px]" style={{ color: "var(--text-muted)" }}>No transactions.</p>
+        ) : filtered.map((tx) => {
+          const isIn = tx.type === 'income' || tx.type === 'payment_received'
+          const isTransfer = tx.type === 'transfer'
+          const iconColor = isIn ? "var(--badge-success-text)" : isTransfer ? "var(--brand)" : "var(--badge-danger-text)"
+          const iconBg    = isIn ? "var(--badge-success-bg)" : isTransfer ? "var(--badge-info-bg)" : "var(--badge-danger-bg)"
+          return (
+            <div key={tx.id} className="flex items-center gap-3 px-4 py-4 trow">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0"
+                style={{ background: iconBg, color: iconColor }}>
+                {isIn ? '↓' : isTransfer ? '⇄' : '↑'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-[13.5px] truncate" style={{ color: "var(--text-primary)" }}>{tx.description}</p>
+                <p className="text-[11.5px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  {tx.category}{tx.person ? ` · ${tx.person}` : ''} · {formatRelativeDate(tx.date)}
                 </p>
               </div>
-            )
-          })
-        )}
+              <p className="font-semibold text-[14px] whitespace-nowrap" style={{ color: iconColor }}>
+                {isIn ? '+' : isTransfer ? '' : '-'}{formatCurrency(tx.amount, tx.currency)}
+              </p>
+            </div>
+          )
+        })}
       </div>
-    </>
+    </div>
   )
 }

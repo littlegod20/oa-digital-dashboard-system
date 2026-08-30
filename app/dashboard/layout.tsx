@@ -1,14 +1,21 @@
-import { Sidebar } from '@/components/dashboard/sidebar'
+"use client";
+
+import { useState } from "react";
+import { Sidebar } from "@/components/dashboard/sidebar";
+import { TopHeader } from "@/components/dashboard/top-header";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="flex min-h-screen bg-[var(--bg)]">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 pb-28 lg:pb-10">
+    <div className="flex h-dvh" style={{ background: "var(--page-bg)" }}>
+      <Sidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <TopHeader />
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
-  )
+  );
 }

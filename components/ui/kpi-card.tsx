@@ -1,39 +1,73 @@
-import { cn } from '@/lib/utils'
+import type { ReactNode } from "react";
+import { Card } from "@/components/ui/card";
 
-interface KpiCardProps {
-  label: string
-  value: string
-  trend?: 'up' | 'down' | 'neutral'
-  trendLabel?: string
-  className?: string
-}
+type KpiCardProps = {
+  label: string;
+  value: string;
+  delta?: string;
+  deltaUp?: boolean;
+  accentBg?: string;
+  accentColor?: string;
+  icon?: ReactNode;
+  tint?: boolean;
+};
 
-const TREND_STYLES = {
-  up:      { color: 'text-[var(--green)]', icon: '↑' },
-  down:    { color: 'text-[var(--red)]',   icon: '↓' },
-  neutral: { color: 'text-[var(--slate)]', icon: '→' },
-}
-
-export function KpiCard({ label, value, trend = 'neutral', trendLabel, className }: KpiCardProps) {
-  const t = TREND_STYLES[trend]
-
+export function KpiCard({
+  label,
+  value,
+  delta,
+  deltaUp = true,
+  accentBg,
+  accentColor,
+  icon,
+  tint = false,
+}: KpiCardProps) {
   return (
-    <div
-      className={cn(
-        'bg-[var(--card)] rounded-xl px-4 py-3.5 shadow-[var(--shadow)] flex flex-col gap-1.5',
-        className
-      )}
+    <Card
+      className="flex flex-col gap-3 p-5"
+      style={tint ? { background: "var(--metric-tint)" } : undefined}
     >
-      <p className="text-[10.5px] font-bold text-[var(--slate)] uppercase tracking-wider">{label}</p>
-      <p className={cn('font-display font-bold text-[17px] text-[var(--navy)]', trend !== 'neutral' && t.color)}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          {label}
+        </p>
+        {icon && (
+          <div
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+            style={{ background: accentBg, color: accentColor }}
+          >
+            {icon}
+          </div>
+        )}
+      </div>
+
+      <p
+        className="truncate text-2xl font-semibold tracking-tight font-display"
+        style={{ color: "var(--text-primary)" }}
+        title={value}
+      >
         {value}
       </p>
-      {trendLabel && (
-        <p className={cn('text-[11px] font-semibold flex items-center gap-0.5', t.color)}>
-          <span>{t.icon}</span>
-          {trendLabel}
-        </p>
+
+      {delta && (
+        <div className="flex items-center gap-1.5">
+          <span
+            className="flex items-center gap-0.5 text-xs font-medium"
+            style={{ color: deltaUp ? "var(--badge-success-text)" : "var(--badge-danger-text)" }}
+          >
+            {deltaUp ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            )}
+            {delta}
+          </span>
+        </div>
       )}
-    </div>
-  )
+    </Card>
+  );
 }

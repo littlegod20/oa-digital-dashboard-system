@@ -1,42 +1,53 @@
-import { formatCurrency } from '@/lib/utils'
-import type { Currency } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { Card } from "@/components/ui/card";
 
 interface BalanceCardProps {
-  currency: Currency
-  balance: number
-  label: string
-  subLabel?: string
-  className?: string
+  currency: "GHS" | "USD";
+  balance: number;
+  label: string;
+  subLabel?: string;
 }
 
-const GRADIENT: Record<Currency, string> = {
-  GHS: 'from-[var(--navy)] to-[var(--blue)]',
-  USD: 'from-[#0E3A63] to-[var(--cyan)]',
+const CURRENCY_META = {
+  GHS: { symbol: "GH₵", accentBg: "rgba(29, 95, 209, 0.12)", accentColor: "var(--oa-blue)" },
+  USD: { symbol: "$",   accentBg: "rgba(34, 184, 240, 0.12)", accentColor: "var(--oa-cyan)" },
+};
+
+function formatBalance(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
+  return n.toFixed(2);
 }
 
-export function BalanceCard({ currency, balance, label, subLabel, className }: BalanceCardProps) {
+export function BalanceCard({ currency, balance, label, subLabel }: BalanceCardProps) {
+  const { symbol, accentBg, accentColor } = CURRENCY_META[currency];
   return (
-    <div
-      className={cn(
-        'relative overflow-hidden rounded-2xl p-5 text-white min-h-[120px] flex flex-col justify-between',
-        `bg-gradient-to-br ${GRADIENT[currency]}`,
-        className
-      )}
-    >
+    <Card className="flex flex-col gap-3 p-5 relative overflow-hidden">
       {/* Decorative circle */}
-      <div className="absolute -right-6 -top-6 w-28 h-28 rounded-full bg-white/8 pointer-events-none" />
+      <div
+        className="absolute -right-6 -top-6 h-24 w-24 rounded-full opacity-40 pointer-events-none"
+        style={{ background: accentBg }}
+      />
+
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>{label}</p>
+        <span
+          className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+          style={{ background: accentBg, color: accentColor }}
+        >
+          {currency}
+        </span>
+      </div>
 
       <div>
-        <p className="text-[10.5px] font-bold tracking-widest uppercase opacity-80">{label}</p>
-        <p className="font-display font-bold text-[28px] leading-tight mt-2">
-          {formatCurrency(balance, currency)}
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{symbol}</p>
+        <p className="font-display font-bold text-[28px] leading-none tracking-tight mt-1" style={{ color: "var(--text-primary)" }}>
+          {formatBalance(balance)}
         </p>
       </div>
 
       {subLabel && (
-        <p className="text-[11.5px] opacity-75">{subLabel}</p>
+        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{subLabel}</p>
       )}
-    </div>
-  )
+    </Card>
+  );
 }
