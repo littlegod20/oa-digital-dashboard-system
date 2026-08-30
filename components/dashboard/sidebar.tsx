@@ -16,6 +16,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useRole } from "@/lib/role-context";
 
 const NAV_SECTIONS = [
   {
@@ -45,8 +46,12 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
   const [signOutModalOpen, setSignOutModalOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { user, logout } = useRole();
 
-  // Close popover on outside click
+  const initials = user?.initials ?? "OA";
+  const displayName = user?.name ?? "User";
+  const roleLabel = user?.role === "management" ? "Management" : user?.role === "sales" ? "Sales" : "";
+
   useEffect(() => {
     if (!popoverOpen) return;
     function handler(e: MouseEvent) {
@@ -147,6 +152,19 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
                 minWidth: "10rem",
               }}
             >
+              {/* Role badge */}
+              <div className="px-3 py-2.5" style={{ borderBottom: "1px solid var(--divider)" }}>
+                <p className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>{user?.email}</p>
+                <span
+                  className="inline-block mt-1 text-[10.5px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                  style={{
+                    background: user?.role === "management" ? "var(--brand-soft)" : "var(--badge-success-bg)",
+                    color: user?.role === "management" ? "var(--brand)" : "var(--badge-success-text)",
+                  }}
+                >
+                  {roleLabel}
+                </span>
+              </div>
               <Link
                 href="/dashboard/settings"
                 onClick={() => setPopoverOpen(false)}
@@ -182,16 +200,16 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
               className="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center text-[11px] font-bold text-white"
               style={{ background: "var(--oa-blue)" }}
             >
-              AF
+              {initials}
             </div>
             {!collapsed && (
               <>
                 <div className="flex-1 min-w-0 text-left">
                   <p className="text-[12.5px] font-medium truncate" style={{ color: "var(--sidebar-text-active)" }}>
-                    Asante Frimpong
+                    {displayName}
                   </p>
                   <p className="text-[11px] truncate" style={{ color: "var(--sidebar-text)" }}>
-                    Admin
+                    {roleLabel}
                   </p>
                 </div>
                 <ChevronDown
@@ -240,7 +258,11 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
               </button>
               <button
                 type="button"
-                onClick={() => { setSignOutModalOpen(false); router.push("/"); }}
+                onClick={() => {
+                  setSignOutModalOpen(false);
+                  logout();
+                  router.push("/login");
+                }}
                 className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
                 style={{ background: "var(--badge-danger-text)" }}
               >

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Poppins } from 'next/font/google'
 import './globals.css'
+import { RoleProvider } from '@/lib/role-context'
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -14,15 +15,11 @@ export const metadata: Metadata = {
   description: 'Internal business dashboard for OA Digital Solutions',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${poppins.variable} antialiased`}>
-        {children}
+        <RoleProvider>{children}</RoleProvider>
       </body>
     </html>
   )
