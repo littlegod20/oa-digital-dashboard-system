@@ -6,12 +6,14 @@ import { DEALS } from '@/lib/mock-data'
 import { PHASE_META } from '@/lib/types'
 import type { PipelinePhase } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { AddDealModal } from '@/components/ui/add-deal-modal'
 
 const ALL_PHASES = ['all', 'lead', 'proposal', 'await', 'meet', 'action', 'progress', 'done', 'hold'] as const
 type FilterPhase = typeof ALL_PHASES[number]
 
 export default function PipelinePage() {
   const [filter, setFilter] = useState<FilterPhase>('all')
+  const [dealModalOpen, setDealModalOpen] = useState(false)
   const filtered = filter === 'all' ? DEALS : DEALS.filter((d) => d.phase === filter)
   const totalValue = filtered.reduce((sum, d) => sum + d.value, 0)
   const totalPaid  = filtered.reduce((sum, d) => sum + d.paid, 0)
@@ -26,7 +28,7 @@ export default function PipelinePage() {
             {filtered.length} deal{filtered.length !== 1 ? 's' : ''} · GHS {(totalValue / 1000).toFixed(0)}K total
           </p>
         </div>
-        <button className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
+        <button onClick={() => setDealModalOpen(true)} className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
           + Add Deal
         </button>
       </div>
@@ -84,6 +86,8 @@ export default function PipelinePage() {
           {filtered.map((deal) => <PipelineCard key={deal.id} deal={deal} />)}
         </div>
       )}
+
+      <AddDealModal open={dealModalOpen} onClose={() => setDealModalOpen(false)} />
     </div>
   )
 }

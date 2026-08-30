@@ -1,8 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Menu, Search, Sun, Moon, Bell } from "lucide-react";
+import { Menu, Sun, Moon, Bell } from "lucide-react";
 import { useState } from "react";
+import { NOTIF_UNREAD } from "@/components/dashboard/notification-sidebar";
 
 function buildBreadcrumb(pathname: string): string[] {
   const parts = pathname
@@ -18,7 +19,13 @@ function buildBreadcrumb(pathname: string): string[] {
   ];
 }
 
-export function TopHeader({ onOpenNav }: { onOpenNav?: () => void }) {
+interface TopHeaderProps {
+  onOpenNav?: () => void;
+  onBellClick?: () => void;
+  notifOpen?: boolean;
+}
+
+export function TopHeader({ onOpenNav, onBellClick, notifOpen }: TopHeaderProps) {
   const pathname = usePathname();
   const crumbs = buildBreadcrumb(pathname);
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -104,16 +111,33 @@ export function TopHeader({ onOpenNav }: { onOpenNav?: () => void }) {
           </kbd>
         </div>
 
-        {/* Bell */}
+        {/* Bell with unread badge */}
         <button
           type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-xl transition-colors"
-          style={{ color: "var(--text-secondary)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--input-bg)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+          onClick={onBellClick}
+          className="relative flex h-8 w-8 items-center justify-center rounded-xl transition-colors"
+          style={{
+            color: notifOpen ? "var(--brand)" : "var(--text-secondary)",
+            background: notifOpen ? "var(--brand-soft)" : "transparent",
+          }}
+          onMouseEnter={(e) => {
+            if (!notifOpen) (e.currentTarget as HTMLElement).style.background = "var(--input-bg)";
+          }}
+          onMouseLeave={(e) => {
+            if (!notifOpen) (e.currentTarget as HTMLElement).style.background = "transparent";
+          }}
           aria-label="Notifications"
+          aria-pressed={notifOpen}
         >
           <Bell className="size-4" />
+          {NOTIF_UNREAD > 0 && (
+            <span
+              className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] font-bold text-white"
+              style={{ background: "var(--badge-danger-text)" }}
+            >
+              {NOTIF_UNREAD}
+            </span>
+          )}
         </button>
 
         {/* Theme toggle */}
@@ -127,16 +151,6 @@ export function TopHeader({ onOpenNav }: { onOpenNav?: () => void }) {
           aria-label="Toggle theme"
         >
           {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
-        </button>
-
-        {/* User avatar */}
-        <button
-          type="button"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold text-white transition-opacity hover:opacity-80"
-          style={{ background: "var(--brand-strong)" }}
-          aria-label="Account"
-        >
-          AF
         </button>
       </div>
     </header>
