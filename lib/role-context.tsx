@@ -1,36 +1,16 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import type { Role, UserProfile } from "./auth";
 
-export type Role = "management" | "sales";
-
-export interface UserProfile {
-  email: string;
-  role: Role;
-  name: string;
-  initials: string;
-}
-
-export const USERS: UserProfile[] = [
-  {
-    email: "info@oadigismartsecurity.com",
-    role: "management",
-    name: "Management",
-    initials: "MG",
-  },
-  {
-    email: "sales@oadigismartsecurity.com",
-    role: "sales",
-    name: "Sales Team",
-    initials: "ST",
-  },
-];
+// Re-export for consumers that already import from here
+export type { Role, UserProfile };
 
 interface RoleContextValue {
   user: UserProfile | null;
   hydrated: boolean;
-  setUser: (user: UserProfile) => void;
-  logout: () => void;
+  setUser: (user: UserProfile | null) => void;
+  logout: () => Promise<void>;
   isManagement: boolean;
   isSales: boolean;
 }
@@ -39,31 +19,29 @@ const RoleContext = createContext<RoleContextValue>({
   user: null,
   hydrated: false,
   setUser: () => {},
-  logout: () => {},
+  logout: async () => {},
   isManagement: false,
   isSales: false,
 });
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [user, setUserState] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("oa-user");
-      if (stored) setUserState(JSON.parse(stored));
-    } catch {}
-    setHydrated(true);
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u) => {
+        // Don't clobber a user already set by the login form
+        setUser((prev) => prev ?? u);
+        setHydrated(true);
+      })
+      .catch(() => setHydrated(true));
   }, []);
 
-  function setUser(u: UserProfile) {
-    setUserState(u);
-    try { localStorage.setItem("oa-user", JSON.stringify(u)); } catch {}
-  }
-
-  function logout() {
-    setUserState(null);
-    try { localStorage.removeItem("oa-user"); } catch {}
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setUser(null);
   }
 
   return (

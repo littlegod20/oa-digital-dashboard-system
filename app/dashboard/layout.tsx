@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { TopHeader } from "@/components/dashboard/top-header";
@@ -10,15 +10,25 @@ import { useRole } from "@/lib/role-context";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const { user, hydrated } = useRole();
+  const { hydrated, user } = useRole();
   const router = useRouter();
 
   useEffect(() => {
     if (hydrated && !user) router.replace("/login");
   }, [hydrated, user, router]);
 
-  // Show nothing while resolving auth to avoid flash
-  if (!hydrated || !user) return null;
+  if (!hydrated || !user) {
+    return (
+      <div
+        className="flex h-dvh items-center justify-center"
+        style={{ background: "var(--page-bg)" }}
+      >
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Loading...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-dvh" style={{ background: "var(--page-bg)" }}>

@@ -258,9 +258,9 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
               </button>
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   setSignOutModalOpen(false);
-                  logout();
+                  await logout();
                   router.push("/login");
                 }}
                 className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
