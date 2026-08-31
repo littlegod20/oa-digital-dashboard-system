@@ -32,9 +32,15 @@ export function PipelineFunnel({ deals }: PipelineFunnelProps) {
           <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-muted)", fontFamily: "DM Sans, sans-serif" }} axisLine={false} tickLine={false} />
           <YAxis tickFormatter={formatCompact} tick={{ fontSize: 10, fill: "var(--text-muted)", fontFamily: "DM Sans, sans-serif" }} axisLine={false} tickLine={false} />
           <Tooltip
-            formatter={(v: number, _: string, entry: { payload: { label: string; count: number } }) =>
-              [`GHS ${formatCompact(v)} (${entry.payload.count} deal${entry.payload.count !== 1 ? 's' : ''})`, entry.payload.label]
-            }
+            formatter={(v, _name, item) => {
+              const payload = item.payload as { label?: string; count?: number } | undefined
+              const count = payload?.count ?? 0
+              const label = payload?.label ?? ''
+              return [
+                `GHS ${formatCompact(Number(v))} (${count} deal${count !== 1 ? 's' : ''})`,
+                label,
+              ]
+            }}
             contentStyle={{
               background: "var(--card-bg)",
               border: "1px solid var(--divider)",

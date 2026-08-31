@@ -3,7 +3,6 @@ import { desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { deals } from "@/lib/db/schema";
 import { getSessionUser } from "@/lib/auth-server";
-import { nanoid } from "@/lib/utils";
 
 export async function GET() {
   const user = await getSessionUser();

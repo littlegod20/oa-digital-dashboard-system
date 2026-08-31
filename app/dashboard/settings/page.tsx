@@ -89,7 +89,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Danger zone */}
-      <div className="rounded-2xl p-6 space-y-3" style={{ background: "var(--card-bg)", border: "1px solid var(--badge-danger-text)", borderOpacity: 0.3 }}>
+      <div className="rounded-2xl p-6 space-y-3" style={{ background: "var(--card-bg)", border: "1px solid color-mix(in srgb, var(--badge-danger-text) 30%, transparent)" }}>
         <h2 className="font-semibold text-[14px]" style={{ color: "var(--badge-danger-text)" }}>Danger Zone</h2>
         <p className="text-[13px]" style={{ color: "var(--text-secondary)" }}>
           Once you delete your account, there is no going back.

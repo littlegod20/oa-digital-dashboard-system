@@ -8,9 +8,9 @@ import { RevenueChart } from '@/components/charts/revenue-chart'
 import { PipelineFunnel } from '@/components/charts/pipeline-funnel'
 import { formatCurrency, formatRelativeDate } from '@/lib/utils'
 import { useRole } from '@/lib/role-context'
+import type { Deal as LibDeal, MonthlyRevenue, PipelinePhase, Currency } from '@/lib/types'
 
-type Phase = 'lead' | 'proposal' | 'negotiation' | 'won' | 'done' | 'hold'
-type Currency = 'GHS' | 'USD'
+type Phase = PipelinePhase
 type TxType = 'income' | 'expense' | 'payment_received'
 
 interface Deal {
@@ -44,13 +44,30 @@ function n(v: string | number): number {
   return Number(v)
 }
 
-function buildMonthlyRevenue(transactions: Transaction[]) {
-  const monthMap: Record<string, { month: string; revenue: number; expenses: number }> = {}
+function toLibDeal(d: Deal): LibDeal {
+  return {
+    id: d.id,
+    client: d.client,
+    title: d.title,
+    value: n(d.value),
+    currency: d.currency,
+    phase: d.phase,
+    assignee: d.assignee,
+    paid: n(d.paid),
+    nextAction: d.nextAction,
+    notes: d.notes ?? '',
+    createdAt: d.createdAt ?? '',
+    updatedAt: d.updatedAt ?? '',
+  }
+}
+
+function buildMonthlyRevenue(transactions: Transaction[]): MonthlyRevenue[] {
+  const monthMap: Record<string, MonthlyRevenue> = {}
   transactions.forEach((tx) => {
     const d = new Date(tx.date)
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     const label = d.toLocaleString('default', { month: 'short' })
-    if (!monthMap[key]) monthMap[key] = { month: label, revenue: 0, expenses: 0 }
+    if (!monthMap[key]) monthMap[key] = { month: label, revenue: 0, expenses: 0, profit: 0 }
     const amt = n(tx.amount)
     if (tx.type === 'income' || tx.type === 'payment_received') {
       monthMap[key].revenue += amt
@@ -60,7 +77,7 @@ function buildMonthlyRevenue(transactions: Transaction[]) {
   })
   return Object.entries(monthMap)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, v]) => v)
+    .map(([, v]) => ({ ...v, profit: v.revenue - v.expenses }))
     .slice(-6)
 }
 
@@ -214,7 +231,7 @@ export default function OverviewPage() {
       {/* Charts */}
       <div className={`grid gap-4 ${isManagement ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
         {isManagement && <RevenueChart data={monthlyRevenue} />}
-        <PipelineFunnel deals={deals} />
+        <PipelineFunnel deals={deals.map(toLibDeal)} />
       </div>
 
       {/* Active deals */}
@@ -229,7 +246,7 @@ export default function OverviewPage() {
         </div>
         <div className="space-y-3">
           {activeDeals.slice(0, 3).map((deal) => (
-            <PipelineCard key={deal.id} deal={deal} />
+            <PipelineCard key={deal.id} deal={toLibDeal(deal)} />
           ))}
         </div>
       </section>

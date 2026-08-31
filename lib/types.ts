@@ -26,6 +26,7 @@ export interface Deal {
   assignee: string
   paid: number
   nextAction: string
+  nextActionDate?: string
   notes: string
   createdAt: string
   updatedAt: string

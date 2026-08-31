@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { PipelineCard } from '@/components/ui/pipeline-card'
 import { PHASE_META } from '@/lib/types'
-import type { PipelinePhase } from '@/lib/types'
+import type { Currency, PipelinePhase } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { AddDealModal } from '@/components/ui/add-deal-modal'
 
@@ -94,6 +94,7 @@ export default function PipelinePage() {
               ...deal,
               value: n(deal.value),
               paid: n(deal.paid),
+              currency: deal.currency as Currency,
               createdAt: deal.createdAt ?? '',
               updatedAt: deal.updatedAt ?? '',
             }} />
