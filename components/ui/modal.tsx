@@ -100,6 +100,56 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   );
 }
 
+export function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel = "Remove",
+  onConfirm,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(7,20,38,0.55)", backdropFilter: "blur(4px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl shadow-2xl p-6"
+        style={{ background: "var(--card-bg)", border: "1px solid var(--divider)" }}
+      >
+        <h2 className="font-semibold text-[16px] mb-1" style={{ color: "var(--text-primary)" }}>
+          {title}
+        </h2>
+        <p className="text-[13.5px] mb-6" style={{ color: "var(--text-secondary)" }}>
+          {message}
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button type="button" onClick={onClose} className="btn-secondary px-4 py-2 rounded-xl text-[13px] font-medium">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
+            style={{ background: "var(--badge-danger-text)" }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ModalActions({ onClose, submitLabel = "Save" }: { onClose: () => void; submitLabel?: string }) {
   return (
     <div className="flex justify-end gap-2 mt-6">

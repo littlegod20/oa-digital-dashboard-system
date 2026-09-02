@@ -1,41 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./modal";
+import { PHASE_META, type Currency, type PipelinePhase } from "@/lib/types";
 
-const PHASES = ["Discovery", "Proposal", "Negotiation", "Contract", "Closed Won", "Closed Lost"];
-
-interface AddDealModalProps {
-  open: boolean;
-  onClose: () => void;
-  onAdd?: (deal: DealDraft) => void;
-}
+const PHASES = Object.keys(PHASE_META) as PipelinePhase[];
 
 export interface DealDraft {
-  clientName: string;
-  dealTitle: string;
+  client: string;
+  title: string;
   value: string;
-  phase: string;
+  currency: Currency;
+  phase: PipelinePhase;
+  assignee: string;
+  paid: string;
   nextAction: string;
-  nextActionDate: string;
   notes: string;
 }
 
+export type DealModalValues = DealDraft & { id?: string };
+
 const empty: DealDraft = {
-  clientName: "", dealTitle: "", value: "", phase: PHASES[0],
-  nextAction: "", nextActionDate: "", notes: "",
+  client: "",
+  title: "",
+  value: "",
+  currency: "GHS",
+  phase: "lead",
+  assignee: "",
+  paid: "0",
+  nextAction: "",
+  notes: "",
 };
 
-export function AddDealModal({ open, onClose, onAdd }: AddDealModalProps) {
-  const [form, setForm] = useState<DealDraft>(empty);
+interface DealModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSave?: (deal: DealDraft) => void;
+  initial?: DealModalValues | null;
+  assignees?: string[];
+}
 
-  function set(k: keyof DealDraft, v: string) {
+export function AddDealModal({ open, onClose, onSave, initial, assignees = [] }: DealModalProps) {
+  const [form, setForm] = useState<DealDraft>(empty);
+  const editing = Boolean(initial?.id);
+
+  useEffect(() => {
+    if (!open) return;
+    if (initial) {
+      setForm({
+        client: initial.client,
+        title: initial.title,
+        value: String(initial.value ?? ""),
+        currency: initial.currency,
+        phase: initial.phase,
+        assignee: initial.assignee,
+        paid: String(initial.paid ?? "0"),
+        nextAction: initial.nextAction,
+        notes: initial.notes,
+      });
+    } else {
+      setForm(empty);
+    }
+  }, [open, initial?.id]);
+
+  function set<K extends keyof DealDraft>(k: K, v: DealDraft[K]) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onAdd?.(form);
+    onSave?.(form);
     setForm(empty);
     onClose();
   }
@@ -46,29 +80,29 @@ export function AddDealModal({ open, onClose, onAdd }: AddDealModalProps) {
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Add Deal" width="32rem">
+    <Modal open={open} onClose={handleClose} title={editing ? "Edit Deal" : "Add Deal"} width="32rem">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-4">
           <Field label="Client Name">
             <Input
               required
               placeholder="e.g. Accra Motors Ltd"
-              value={form.clientName}
-              onChange={(e) => set("clientName", e.target.value)}
+              value={form.client}
+              onChange={(e) => set("client", e.target.value)}
             />
           </Field>
           <Field label="Deal Title">
             <Input
               required
               placeholder="e.g. Brand Refresh"
-              value={form.dealTitle}
-              onChange={(e) => set("dealTitle", e.target.value)}
+              value={form.title}
+              onChange={(e) => set("title", e.target.value)}
             />
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Value (GHS)">
+          <Field label="Value">
             <Input
               type="number"
               min="0"
@@ -78,32 +112,63 @@ export function AddDealModal({ open, onClose, onAdd }: AddDealModalProps) {
               onChange={(e) => set("value", e.target.value)}
             />
           </Field>
+          <Field label="Currency">
+            <Select
+              required
+              value={form.currency}
+              onChange={(e) => set("currency", e.target.value as Currency)}
+            >
+              <option value="GHS">GHS</option>
+              <option value="USD">USD</option>
+            </Select>
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Paid">
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={form.paid}
+              onChange={(e) => set("paid", e.target.value)}
+            />
+          </Field>
           <Field label="Phase">
             <Select
               required
               value={form.phase}
-              onChange={(e) => set("phase", e.target.value)}
+              onChange={(e) => set("phase", e.target.value as PipelinePhase)}
             >
               {PHASES.map((p) => (
-                <option key={p} value={p}>{p}</option>
+                <option key={p} value={p}>{PHASE_META[p].label}</option>
               ))}
             </Select>
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
+          <Field label="Assignee">
+            <Input
+              list="deal-assignees"
+              placeholder="e.g. Gerhard"
+              value={form.assignee}
+              onChange={(e) => set("assignee", e.target.value)}
+            />
+            {assignees.length > 0 && (
+              <datalist id="deal-assignees">
+                {assignees.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            )}
+          </Field>
           <Field label="Next Action">
             <Input
               placeholder="e.g. Send proposal"
               value={form.nextAction}
               onChange={(e) => set("nextAction", e.target.value)}
-            />
-          </Field>
-          <Field label="Next Action Date">
-            <Input
-              type="date"
-              value={form.nextActionDate}
-              onChange={(e) => set("nextActionDate", e.target.value)}
             />
           </Field>
         </div>
@@ -116,7 +181,7 @@ export function AddDealModal({ open, onClose, onAdd }: AddDealModalProps) {
           />
         </Field>
 
-        <ModalActions onClose={handleClose} submitLabel="Add Deal" />
+        <ModalActions onClose={handleClose} submitLabel={editing ? "Save Changes" : "Add Deal"} />
       </form>
     </Modal>
   );

@@ -1,13 +1,17 @@
+"use client";
+
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { BadgeTone } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import type { Deal } from "@/lib/types";
 import { PHASE_META } from "@/lib/types";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Pencil, Trash2 } from "lucide-react";
 
 interface PipelineCardProps {
   deal: Deal;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 const PHASE_TONE: Record<string, BadgeTone> = {
@@ -21,7 +25,7 @@ const PHASE_TONE: Record<string, BadgeTone> = {
   hold:     "neutral",
 };
 
-export function PipelineCard({ deal }: PipelineCardProps) {
+export function PipelineCard({ deal, onEdit, onDelete }: PipelineCardProps) {
   const outstanding = deal.value - deal.paid;
   const progress = deal.value > 0 ? (deal.paid / deal.value) * 100 : 0;
   const phaseMeta = PHASE_META[deal.phase];
@@ -36,7 +40,7 @@ export function PipelineCard({ deal }: PipelineCardProps) {
             <p className="font-semibold text-[14px] leading-tight" style={{ color: "var(--text-primary)" }}>
               {deal.client}
             </p>
-            <Badge tone={tone} dot>{phaseMeta.label}</Badge>
+            <Badge tone={tone} dot>{phaseMeta?.label ?? deal.phase}</Badge>
           </div>
           <p className="text-[12.5px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
             {deal.title}
@@ -93,6 +97,32 @@ export function PipelineCard({ deal }: PipelineCardProps) {
             <span className="text-[11px] shrink-0" style={{ color: "var(--text-muted)" }}>
               {new Date(deal.nextActionDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
             </span>
+          )}
+        </div>
+      )}
+
+      {(onEdit || onDelete) && (
+        <div className="flex justify-end gap-2 pt-1">
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="btn-ghost inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+            >
+              <Pencil className="size-3.5" />
+              Edit
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
+              style={{ color: "var(--badge-danger-text)" }}
+            >
+              <Trash2 className="size-3.5" />
+              Remove
+            </button>
           )}
         </div>
       )}

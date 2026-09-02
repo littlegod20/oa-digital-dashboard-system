@@ -19,13 +19,13 @@ export async function POST(req: NextRequest) {
     .insert(deals)
     .values({
       id: `d${Date.now()}`,
-      client: body.client,
-      title: body.title,
+      client: body.client ?? body.clientName,
+      title: body.title ?? body.dealTitle,
       value: String(body.value ?? 0),
       currency: body.currency ?? "GHS",
       phase: body.phase ?? "lead",
       assignee: body.assignee ?? "",
-      paid: "0",
+      paid: String(body.paid ?? 0),
       nextAction: body.nextAction ?? "",
       notes: body.notes ?? "",
     })

@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { PipelineCard } from '@/components/ui/pipeline-card'
 import { PHASE_META } from '@/lib/types'
 import type { Currency, PipelinePhase } from '@/lib/types'
-import { cn } from '@/lib/utils'
-import { AddDealModal } from '@/components/ui/add-deal-modal'
+import { AddDealModal, type DealDraft } from '@/components/ui/add-deal-modal'
+import { ConfirmDialog } from '@/components/ui/modal'
 
 const ALL_PHASES = ['all', 'lead', 'proposal', 'await', 'meet', 'action', 'progress', 'done', 'hold'] as const
 type FilterPhase = typeof ALL_PHASES[number]
@@ -18,18 +18,75 @@ type Deal = {
 
 function n(v: string | number) { return Number(v) }
 
+function toCardDeal(deal: Deal) {
+  return {
+    ...deal,
+    value: n(deal.value),
+    paid: n(deal.paid),
+    currency: deal.currency as Currency,
+    createdAt: deal.createdAt ?? '',
+    updatedAt: deal.updatedAt ?? '',
+  }
+}
+
 export default function PipelinePage() {
   const [filter, setFilter] = useState<FilterPhase>('all')
   const [dealModalOpen, setDealModalOpen] = useState(false)
+  const [editing, setEditing] = useState<Deal | null>(null)
+  const [removing, setRemoving] = useState<Deal | null>(null)
   const [deals, setDeals] = useState<Deal[]>([])
+  const [assignees, setAssignees] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/deals')
-      .then(r => r.ok ? r.json() : [])
-      .then(setDeals)
+    Promise.all([
+      fetch('/api/deals').then((r) => r.ok ? r.json() : []),
+      fetch('/api/team').then((r) => r.ok ? r.json() : []),
+    ])
+      .then(([d, team]) => {
+        setDeals(Array.isArray(d) ? d : [])
+        setAssignees(Array.isArray(team) ? team.map((m: { name: string }) => m.name) : [])
+      })
       .finally(() => setLoading(false))
   }, [])
+
+  function openAdd() {
+    setEditing(null)
+    setDealModalOpen(true)
+  }
+
+  function openEdit(deal: Deal) {
+    setEditing(deal)
+    setDealModalOpen(true)
+  }
+
+  async function handleSave(form: DealDraft) {
+    if (editing) {
+      const res = await fetch(`/api/deals/${editing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const updated = res.ok ? await res.json() : null
+      if (updated) setDeals((prev) => prev.map((d) => d.id === updated.id ? updated : d))
+    } else {
+      const res = await fetch('/api/deals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      const created = res.ok ? await res.json() : null
+      if (created) setDeals((prev) => [created, ...prev])
+    }
+  }
+
+  async function handleRemove() {
+    if (!removing) return
+    const id = removing.id
+    const res = await fetch(`/api/deals/${id}`, { method: 'DELETE' })
+    if (res.ok) setDeals((prev) => prev.filter((d) => d.id !== id))
+    setRemoving(null)
+  }
 
   const filtered = filter === 'all' ? deals : deals.filter((d) => d.phase === filter)
   const totalValue = filtered.reduce((sum, d) => sum + n(d.value), 0)
@@ -44,7 +101,7 @@ export default function PipelinePage() {
             {filtered.length} deal{filtered.length !== 1 ? 's' : ''} · GHS {(totalValue / 1000).toFixed(0)}K total
           </p>
         </div>
-        <button onClick={() => setDealModalOpen(true)} className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
+        <button onClick={openAdd} className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
           + Add Deal
         </button>
       </div>
@@ -90,26 +147,42 @@ export default function PipelinePage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((deal) => (
-            <PipelineCard key={deal.id} deal={{
-              ...deal,
-              value: n(deal.value),
-              paid: n(deal.paid),
-              currency: deal.currency as Currency,
-              createdAt: deal.createdAt ?? '',
-              updatedAt: deal.updatedAt ?? '',
-            }} />
+            <PipelineCard
+              key={deal.id}
+              deal={toCardDeal(deal)}
+              onEdit={() => openEdit(deal)}
+              onDelete={() => setRemoving(deal)}
+            />
           ))}
         </div>
       )}
 
       <AddDealModal
         open={dealModalOpen}
-        onClose={() => setDealModalOpen(false)}
-        onAdd={(form) => {
-          fetch('/api/deals', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-            .then(r => r.ok ? r.json() : null)
-            .then(d => { if (d) setDeals(prev => [d, ...prev]) })
-        }}
+        onClose={() => { setDealModalOpen(false); setEditing(null) }}
+        initial={editing ? {
+          id: editing.id,
+          client: editing.client,
+          title: editing.title,
+          value: String(n(editing.value)),
+          currency: (editing.currency as Currency) || 'GHS',
+          phase: editing.phase,
+          assignee: editing.assignee,
+          paid: String(n(editing.paid)),
+          nextAction: editing.nextAction,
+          notes: editing.notes,
+        } : null}
+        assignees={assignees}
+        onSave={handleSave}
+      />
+
+      <ConfirmDialog
+        open={Boolean(removing)}
+        title="Remove deal?"
+        message={removing ? `This will permanently remove “${removing.client} — ${removing.title}” from the pipeline.` : ''}
+        confirmLabel="Remove"
+        onClose={() => setRemoving(null)}
+        onConfirm={handleRemove}
       />
     </div>
   )
