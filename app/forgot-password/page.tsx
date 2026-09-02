@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Mail, ArrowLeft, CheckCircle, Copy, Check, AlertCircle } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -48,11 +49,8 @@ export default function ForgotPasswordPage() {
       <div style={{ width: "100%", maxWidth: "400px" }}>
         {/* Logo */}
         <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl font-bold text-xl mb-4"
-            style={{ background: "var(--brand-strong)", color: "#fff" }}
-          >
-            OA
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl overflow-hidden mb-4">
+            <Image src="/oa-logo.jpeg" alt="OA Digital" width={56} height={56} className="w-full h-full object-cover" priority />
           </div>
           <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
             Reset your password

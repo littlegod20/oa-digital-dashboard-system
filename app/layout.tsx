@@ -13,6 +13,9 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: 'OA Digital | Command Center',
   description: 'Internal business dashboard for OA Digital Solutions',
+  icons: {
+    icon: '/oa-logo.jpeg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

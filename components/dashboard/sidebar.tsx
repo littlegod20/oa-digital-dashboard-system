@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -83,12 +84,15 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
           style={{ borderBottom: "1px solid var(--sidebar-border)" }}
         >
           {!collapsed && (
-            <span className="font-display font-bold text-white text-[17px] tracking-tight flex-1 truncate">
-              OA Digital
-            </span>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Image src="/oa-logo.jpeg" alt="OA Digital" width={28} height={28} className="rounded-md shrink-0 object-cover" />
+              <span className="font-display font-bold text-white text-[17px] tracking-tight truncate">
+                OA Digital
+              </span>
+            </div>
           )}
           {collapsed && (
-            <span className="font-display font-bold text-white text-[15px]">OA</span>
+            <Image src="/oa-logo.jpeg" alt="OA Digital" width={28} height={28} className="rounded-md object-cover" />
           )}
           <button
             type="button"
