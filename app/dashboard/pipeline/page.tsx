@@ -1,35 +1,39 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import type { DealView } from '@/convex/deals'
 import { KanbanIcon, PlusIcon } from '@phosphor-icons/react'
 import { PipelineCard } from '@/components/ui/pipeline-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { Segmented } from '@/components/ui/segmented'
 import { EmptyState, Skeleton } from '@/components/ui/states'
 import { PHASE_META } from '@/lib/types'
-import type { Currency, PipelinePhase } from '@/lib/types'
+import type { PipelinePhase } from '@/lib/types'
 import { AddDealModal, type DealDraft } from '@/components/ui/add-deal-modal'
 import { ConfirmDialog } from '@/components/ui/modal'
 
 const ALL_PHASES = ['all', 'lead', 'proposal', 'await', 'meet', 'action', 'progress', 'done', 'hold'] as const
 type FilterPhase = typeof ALL_PHASES[number]
 
-type Deal = {
-  id: string; client: string; title: string; value: string | number; currency: string;
-  phase: PipelinePhase; assignee: string; paid: string | number; nextAction: string; notes: string;
-  createdAt: string | null; updatedAt: string | null;
-}
+type Deal = DealView
+
+const NO_DEALS: Deal[] = []
 
 function n(v: string | number) { return Number(v) }
 
-function toCardDeal(deal: Deal) {
+function fromDraft(form: DealDraft) {
   return {
-    ...deal,
-    value: n(deal.value),
-    paid: n(deal.paid),
-    currency: deal.currency as Currency,
-    createdAt: deal.createdAt ?? '',
-    updatedAt: deal.updatedAt ?? '',
+    client: form.client.trim(),
+    title: form.title.trim(),
+    value: Number(form.value) || 0,
+    currency: form.currency,
+    phase: form.phase,
+    assignee: form.assignee.trim(),
+    paid: Number(form.paid) || 0,
+    nextAction: form.nextAction.trim(),
+    notes: form.notes.trim(),
   }
 }
 
@@ -42,21 +46,14 @@ export default function PipelinePage() {
   const [dealModalOpen, setDealModalOpen] = useState(false)
   const [editing, setEditing] = useState<Deal | null>(null)
   const [removing, setRemoving] = useState<Deal | null>(null)
-  const [deals, setDeals] = useState<Deal[]>([])
-  const [assignees, setAssignees] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/deals').then((r) => r.ok ? r.json() : []),
-      fetch('/api/team').then((r) => r.ok ? r.json() : []),
-    ])
-      .then(([d, team]) => {
-        setDeals(Array.isArray(d) ? d : [])
-        setAssignees(Array.isArray(team) ? team.map((m: { name: string }) => m.name) : [])
-      })
-      .finally(() => setLoading(false))
-  }, [])
+  const dealsData = useQuery(api.deals.list)
+  const teamData = useQuery(api.team.list)
+  const createDeal = useMutation(api.deals.create)
+  const updateDeal = useMutation(api.deals.update)
+  const removeDeal = useMutation(api.deals.remove)
+  const loading = dealsData === undefined
+  const deals = dealsData ?? NO_DEALS
+  const assignees = (teamData ?? []).map((m) => m.name)
 
   function openAdd() {
     setEditing(null)
@@ -69,30 +66,13 @@ export default function PipelinePage() {
   }
 
   async function handleSave(form: DealDraft) {
-    if (editing) {
-      const res = await fetch(`/api/deals/${editing.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
-      const updated = res.ok ? await res.json() : null
-      if (updated) setDeals((prev) => prev.map((d) => d.id === updated.id ? updated : d))
-    } else {
-      const res = await fetch('/api/deals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
-      const created = res.ok ? await res.json() : null
-      if (created) setDeals((prev) => [created, ...prev])
-    }
+    if (editing) await updateDeal({ id: editing.id, ...fromDraft(form) })
+    else await createDeal(fromDraft(form))
   }
 
   async function handleRemove() {
     if (!removing) return
-    const id = removing.id
-    const res = await fetch(`/api/deals/${id}`, { method: 'DELETE' })
-    if (res.ok) setDeals((prev) => prev.filter((d) => d.id !== id))
+    await removeDeal({ id: removing.id })
     setRemoving(null)
   }
 
@@ -193,7 +173,7 @@ export default function PipelinePage() {
           {filtered.map((deal) => (
             <PipelineCard
               key={deal.id}
-              deal={toCardDeal(deal)}
+              deal={deal}
               onEdit={() => openEdit(deal)}
               onDelete={() => setRemoving(deal)}
             />
@@ -209,7 +189,7 @@ export default function PipelinePage() {
           client: editing.client,
           title: editing.title,
           value: String(n(editing.value)),
-          currency: (editing.currency as Currency) || 'GHS',
+          currency: editing.currency,
           phase: editing.phase,
           assignee: editing.assignee,
           paid: String(n(editing.paid)),

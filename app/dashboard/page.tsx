@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
 import Link from 'next/link'
 import {
   ArrowRightIcon,
@@ -61,6 +63,10 @@ interface Member {
   totalRevenue: string | number
 }
 
+const NO_DEALS: Deal[] = []
+const NO_TRANSACTIONS: Transaction[] = []
+const NO_MEMBERS: Member[] = []
+
 function n(v: string | number): number {
   return Number(v)
 }
@@ -113,24 +119,13 @@ function greeting() {
 
 export default function OverviewPage() {
   const { user, isManagement } = useRole()
-  const [deals, setDeals] = useState<Deal[]>([])
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [team, setTeam] = useState<Member[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/deals').then((r) => r.json()),
-      fetch('/api/transactions').then((r) => r.json()),
-      fetch('/api/team').then((r) => (r.ok ? r.json() : [])),
-    ])
-      .then(([d, t, m]) => {
-        setDeals(Array.isArray(d) ? d : [])
-        setTransactions(Array.isArray(t) ? t : [])
-        setTeam(Array.isArray(m) ? m : [])
-      })
-      .finally(() => setLoading(false))
-  }, [])
+  const dealsData = useQuery(api.deals.list)
+  const txData = useQuery(api.transactions.list)
+  const teamData = useQuery(api.team.list)
+  const loading = dealsData === undefined || txData === undefined || teamData === undefined
+  const deals: Deal[] = dealsData ?? NO_DEALS
+  const transactions: Transaction[] = txData ?? NO_TRANSACTIONS
+  const team: Member[] = teamData ?? NO_MEMBERS
 
   const kpi = useMemo(() => {
     const ghsTx = transactions.filter((t) => t.currency === 'GHS')

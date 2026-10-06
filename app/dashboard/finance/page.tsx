@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
 import { ChartLineUpIcon, PlusIcon, ReceiptIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardHeader } from '@/components/ui/card'
@@ -20,8 +22,9 @@ const TYPE_LABEL: Record<TransactionType | 'all', string> = {
   all: 'All', income: 'Income', payment_received: 'Received', expense: 'Expenses', transfer: 'Transfers',
 }
 
-type Tx = { id: string; type: string; description: string; amount: string | number; currency: string; person?: string | null; category: string; date: string; orderId?: string | null }
 type Deal = { id: string; client: string; title: string; value: string | number; currency: string; phase: string; paid: string | number; nextAction: string }
+
+const NO_DEALS: Deal[] = []
 
 function n(v: string | number) { return Number(v) }
 function ghsK(v: number) { return `GHS ${(v / 1000).toFixed(0)}K` }
@@ -29,18 +32,13 @@ function ghsK(v: number) { return `GHS ${(v / 1000).toFixed(0)}K` }
 export default function FinancePage() {
   const [filter, setFilter] = useState<FilterType>('all')
   const [txModalOpen, setTxModalOpen] = useState(false)
-  const [transactions, setTransactions] = useState<Tx[]>([])
-  const [deals, setDeals] = useState<Deal[]>([])
-  const [loading, setLoading] = useState(true)
+  const txData = useQuery(api.transactions.list)
+  const dealsData = useQuery(api.deals.list)
+  const createTransaction = useMutation(api.transactions.create)
   const { isManagement, isSales } = useRole()
-
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/transactions').then(r => r.ok ? r.json() : []),
-      fetch('/api/deals').then(r => r.ok ? r.json() : []),
-    ]).then(([txs, ds]) => { setTransactions(txs); setDeals(ds) })
-      .finally(() => setLoading(false))
-  }, [])
+  const loading = txData === undefined || dealsData === undefined
+  const transactions = useMemo(() => txData ?? [], [txData])
+  const deals: Deal[] = dealsData ?? NO_DEALS
 
   const filtered = filter === 'all' ? transactions : transactions.filter((t) => t.type === filter)
   const outstanding = deals.filter(d => n(d.value) - n(d.paid) > 0 && d.phase !== 'done')
@@ -137,9 +135,14 @@ export default function FinancePage() {
         open={txModalOpen}
         onClose={() => setTxModalOpen(false)}
         onAdd={(form) => {
-          fetch('/api/transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-            .then(r => r.ok ? r.json() : null)
-            .then(t => { if (t) setTransactions(prev => [t, ...prev]) })
+          void createTransaction({
+            type: form.type,
+            description: form.description,
+            amount: Number(form.amount) || 0,
+            currency: form.currency,
+            category: form.category,
+            person: form.person,
+          })
         }}
       />
     </div>

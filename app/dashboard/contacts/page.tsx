@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
 import { AddressBookIcon, MagnifyingGlassIcon, UserPlusIcon } from '@phosphor-icons/react'
 import { formatDate } from '@/lib/utils'
 import { PageHeader } from '@/components/ui/page-header'
@@ -18,23 +20,14 @@ const TAG_TONE: Record<string, BadgeTone> = {
   logistics:  'neutral',
 }
 
-type Contact = {
-  id: string; name: string; company?: string | null; email?: string | null;
-  phone?: string | null; notes?: string | null; tags: string[]; createdAt: string | null;
-}
 
 export default function ContactsPage() {
   const [contactModalOpen, setContactModalOpen] = useState(false)
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [loading, setLoading] = useState(true)
+  const contactsData = useQuery(api.contacts.list)
+  const createContact = useMutation(api.contacts.create)
+  const loading = contactsData === undefined
+  const contacts = contactsData ?? []
   const [query, setQuery] = useState('')
-
-  useEffect(() => {
-    fetch('/api/contacts')
-      .then(r => r.ok ? r.json() : [])
-      .then(setContacts)
-      .finally(() => setLoading(false))
-  }, [])
 
   const q = query.trim().toLowerCase()
   const visible = q
@@ -153,9 +146,7 @@ export default function ContactsPage() {
         onClose={() => setContactModalOpen(false)}
         onAdd={(form) => {
           const tags = form.tags ? form.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []
-          fetch('/api/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, tags }) })
-            .then(r => r.ok ? r.json() : null)
-            .then(c => { if (c) setContacts(prev => [...prev, c].sort((a, b) => a.name.localeCompare(b.name))) })
+          void createContact({ ...form, tags })
         }}
       />
     </div>

@@ -7,14 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:push": "drizzle-kit push",
-    "db:replace-seed": "tsx lib/db/run-replace-seed.ts"
+    "convex": "convex dev",
+    "migrate:postgres": "node scripts/migrate-postgres-to-convex.mjs"
   },
   "dependencies": {
+    "@convex-dev/better-auth": "^0.12.5",
     "@phosphor-icons/react": "^2.1.10",
     "bcryptjs": "^2.4.3",
+    "better-auth": "1.6.17",
     "clsx": "^2.1.1",
-    "drizzle-orm": "^0.44.2",
+    "convex": "^1.46.0",
     "jose": "^6.2.10",
     "next": "16.3.3",
     "postgres": "^3.4.9",
@@ -30,7 +32,6 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv": "^17.4.2",
-    "drizzle-kit": "^0.31.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
     "tailwindcss": "^4",

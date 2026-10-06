@@ -17,12 +17,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
-  const { hydrated, user, logout } = useRole();
+  const { hydrated, user, isAuthenticated, logout } = useRole();
   const router = useRouter();
 
   useEffect(() => {
-    if (hydrated && !user) router.replace("/login");
-  }, [hydrated, user, router]);
+    if (hydrated && !isAuthenticated) router.replace("/login");
+  }, [hydrated, isAuthenticated, router]);
 
   // ⌘K / Ctrl+K opens the command palette
   useEffect(() => {
@@ -40,6 +40,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const closeNotif = useCallback(() => setNotifOpen(false), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
   const askSignOut = useCallback(() => setSignOutOpen(true), []);
+
+  // Signed in, but no app profile links this account to a role.
+  if (hydrated && isAuthenticated && !user) {
+    return (
+      <div className="flex h-dvh items-center justify-center p-4">
+        <div className="card max-w-sm p-8 text-center">
+          <BrandMark size={48} className="mx-auto" />
+          <h1 className="mt-5 font-display text-[20px] font-semibold text-fg">Account not set up</h1>
+          <p className="mt-2 text-[13.5px] text-fg-2">
+            You&apos;re signed in, but no role has been assigned to this account yet. Ask an administrator to set it up.
+          </p>
+          <button
+            type="button"
+            className="btn btn-secondary mt-6"
+            onClick={async () => {
+              await logout();
+              router.replace("/login");
+            }}
+          >
+            <SignOutIcon size={16} />
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!hydrated || !user) {
     return (

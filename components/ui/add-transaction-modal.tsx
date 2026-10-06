@@ -4,8 +4,13 @@ import { useState } from "react";
 import { ReceiptIcon } from "@phosphor-icons/react";
 import { Modal, Field, Input, Select, ModalActions } from "./modal";
 
-const CURRENCIES = ["GHS", "USD", "EUR", "GBP"];
-const TYPES = ["Income", "Expense", "Transfer"];
+const CURRENCIES = ["GHS", "USD"] as const;
+const TYPES = [
+  { value: "income", label: "Income" },
+  { value: "payment_received", label: "Payment received" },
+  { value: "expense", label: "Expense" },
+  { value: "transfer", label: "Transfer" },
+] as const;
 const CATEGORIES = [
   "Client Payment", "Salary", "Software & Tools", "Marketing",
   "Office & Supplies", "Travel", "Freelance", "Tax", "Other",
@@ -20,21 +25,21 @@ interface AddTransactionModalProps {
 export interface TransactionDraft {
   description: string;
   amount: string;
-  currency: string;
-  type: string;
+  currency: (typeof CURRENCIES)[number];
+  type: (typeof TYPES)[number]["value"];
   category: string;
   person: string;
 }
 
 const empty: TransactionDraft = {
   description: "", amount: "", currency: "GHS",
-  type: "Income", category: CATEGORIES[0], person: "",
+  type: "income", category: CATEGORIES[0], person: "",
 };
 
 export function AddTransactionModal({ open, onClose, onAdd }: AddTransactionModalProps) {
   const [form, setForm] = useState<TransactionDraft>(empty);
 
-  function set(k: keyof TransactionDraft, v: string) {
+  function set<K extends keyof TransactionDraft>(k: K, v: TransactionDraft[K]) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
@@ -77,7 +82,7 @@ export function AddTransactionModal({ open, onClose, onAdd }: AddTransactionModa
           <Field label="Currency">
             <Select
               value={form.currency}
-              onChange={(e) => set("currency", e.target.value)}
+              onChange={(e) => set("currency", e.target.value as TransactionDraft["currency"])}
             >
               {CURRENCIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
@@ -90,10 +95,10 @@ export function AddTransactionModal({ open, onClose, onAdd }: AddTransactionModa
           <Field label="Type">
             <Select
               value={form.type}
-              onChange={(e) => set("type", e.target.value)}
+              onChange={(e) => set("type", e.target.value as TransactionDraft["type"])}
             >
               {TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </Select>
           </Field>

@@ -1,15 +1,25 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import type { Role, UserProfile } from "./auth";
+import { createContext, useContext, type ReactNode } from "react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { authClient } from "./auth-client";
 
-// Re-export for consumers that already import from here
-export type { Role, UserProfile };
+export type Role = "management" | "sales";
+
+export interface UserProfile {
+  email: string;
+  role: Role;
+  name: string;
+  initials: string;
+}
 
 interface RoleContextValue {
   user: UserProfile | null;
+  /** True once we know whether someone is signed in (and have their profile if so). */
   hydrated: boolean;
-  setUser: (user: UserProfile | null) => void;
+  /** Signed in with Better Auth, even if no app profile exists yet. */
+  isAuthenticated: boolean;
   logout: () => Promise<void>;
   isManagement: boolean;
   isSales: boolean;
@@ -18,30 +28,21 @@ interface RoleContextValue {
 const RoleContext = createContext<RoleContextValue>({
   user: null,
   hydrated: false,
-  setUser: () => {},
+  isAuthenticated: false,
   logout: async () => {},
   isManagement: false,
   isSales: false,
 });
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const { isLoading, isAuthenticated } = useConvexAuth();
+  const me = useQuery(api.users.me, isAuthenticated ? {} : "skip");
 
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((u) => {
-        // Don't clobber a user already set by the login form
-        setUser((prev) => prev ?? u);
-        setHydrated(true);
-      })
-      .catch(() => setHydrated(true));
-  }, []);
+  const user = isAuthenticated ? (me ?? null) : null;
+  const hydrated = !isLoading && (!isAuthenticated || me !== undefined);
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
+    await authClient.signOut();
   }
 
   return (
@@ -49,7 +50,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         hydrated,
-        setUser,
+        isAuthenticated,
         logout,
         isManagement: user?.role === "management",
         isSales: user?.role === "sales",

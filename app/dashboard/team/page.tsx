@@ -1,6 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '@/convex/_generated/api'
+import type { MemberView } from '@/convex/team'
 import {
   CoinsIcon,
   EnvelopeSimpleIcon,
@@ -19,25 +22,20 @@ import { EmptyState, Skeleton } from '@/components/ui/states'
 import { AddMemberModal, type MemberDraft } from '@/components/ui/add-member-modal'
 import { ConfirmDialog } from '@/components/ui/modal'
 
-type Member = {
-  id: string; name: string; role: string; email: string;
-  phone?: string | null; avatar?: string | null;
-  activeDeals: number; totalRevenue: string | number;
-}
+type Member = MemberView
+
+const NO_MEMBERS: Member[] = []
 
 export default function TeamPage() {
   const [memberModalOpen, setMemberModalOpen] = useState(false)
   const [editing, setEditing] = useState<Member | null>(null)
   const [removing, setRemoving] = useState<Member | null>(null)
-  const [team, setTeam] = useState<Member[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    fetch('/api/team')
-      .then(r => r.ok ? r.json() : [])
-      .then(setTeam)
-      .finally(() => setLoading(false))
-  }, [])
+  const teamData = useQuery(api.team.list)
+  const createMember = useMutation(api.team.create)
+  const updateMember = useMutation(api.team.update)
+  const removeMember = useMutation(api.team.remove)
+  const loading = teamData === undefined
+  const team = teamData ?? NO_MEMBERS
 
   function openAdd() {
     setEditing(null)
@@ -50,34 +48,13 @@ export default function TeamPage() {
   }
 
   async function handleSave(form: MemberDraft) {
-    if (editing) {
-      const res = await fetch(`/api/team/${editing.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
-      const updated = res.ok ? await res.json() : null
-      if (updated) {
-        setTeam((prev) =>
-          prev.map((m) => m.id === updated.id ? updated : m).sort((a, b) => a.name.localeCompare(b.name))
-        )
-      }
-    } else {
-      const res = await fetch('/api/team', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
-      const created = res.ok ? await res.json() : null
-      if (created) setTeam((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
-    }
+    if (editing) await updateMember({ id: editing.id, ...form })
+    else await createMember(form)
   }
 
   async function handleRemove() {
     if (!removing) return
-    const id = removing.id
-    const res = await fetch(`/api/team/${id}`, { method: 'DELETE' })
-    if (res.ok) setTeam((prev) => prev.filter((m) => m.id !== id))
+    await removeMember({ id: removing.id })
     setRemoving(null)
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   ArrowLeftIcon,
@@ -12,48 +12,38 @@ import {
 } from "@phosphor-icons/react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Alert, Field, Input } from "@/components/ui/field";
+import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = searchParams.get("token") ?? "";
+  // Better Auth redirects here with ?error=INVALID_TOKEN when the link is bad or expired.
+  const linkError = searchParams.get("error") || !token ? "Invalid or expired reset link. Please request a new one." : "";
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!token) setError("Invalid or missing reset token. Please request a new link.");
-  }, [token]);
+  const [formError, setFormError] = useState("");
+  const error = formError || linkError;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password !== confirm) { setError("Passwords do not match."); return; }
-    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (password !== confirm) { setFormError("Passwords do not match."); return; }
+    if (password.length < 8) { setFormError("Password must be at least 8 characters."); return; }
     setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setDone(true);
-        setTimeout(() => router.push("/login"), 2500);
-      } else {
-        setError(data.error ?? "Reset failed. The link may have expired.");
-      }
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+    setFormError("");
+    const { error: resetError } = await authClient.resetPassword({ newPassword: password, token });
+    setLoading(false);
+    if (resetError) {
+      setFormError(resetError.message ?? "Reset failed. The link may have expired.");
+      return;
     }
+    setDone(true);
+    setTimeout(() => router.push("/login"), 2500);
   }
 
   return (
@@ -110,7 +100,7 @@ function ResetPasswordForm() {
               className="h-12"
             />
           </Field>
-          <button type="submit" disabled={loading || !token} className="btn btn-primary btn-lg w-full">
+          <button type="submit" disabled={loading || Boolean(linkError)} className="btn btn-primary btn-lg w-full">
             {loading ? "Updating…" : "Update password"}
           </button>
         </form>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EnvelopeSimpleIcon, EyeIcon, EyeSlashIcon, LockSimpleIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { useRole } from "@/lib/role-context";
+import { authClient } from "@/lib/auth-client";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Alert, Field, Input } from "@/components/ui/field";
 
@@ -15,31 +16,32 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { setUser } = useRole();
+  const { hydrated, user } = useRole();
+
+  // Already signed in: go straight to the dashboard.
+  useEffect(() => {
+    if (hydrated && user) router.replace("/dashboard");
+  }, [hydrated, user, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setUser(data.user);
-        router.replace("/dashboard");
-        router.refresh();
-      } else {
-        setError(data.error ?? "Login failed. Please try again.");
-        setLoading(false);
-      }
-    } catch {
-      setError("Network error. Please try again.");
+    const { error: signInError } = await authClient.signIn.email({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (signInError) {
+      setError(
+        signInError.status === 401 || signInError.code === "INVALID_EMAIL_OR_PASSWORD"
+          ? "Invalid email or password"
+          : signInError.message ?? "Login failed. Please try again.",
+      );
       setLoading(false);
+      return;
     }
+    const from = new URLSearchParams(window.location.search).get("from");
+    router.replace(from?.startsWith("/dashboard") ? from : "/dashboard");
   }
 
   return (
