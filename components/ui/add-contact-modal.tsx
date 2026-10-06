@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AddressBookIcon } from "@phosphor-icons/react";
 import { Modal, Field, Input, Textarea, ModalActions } from "./modal";
 
 interface AddContactModalProps {
@@ -42,9 +43,9 @@ export function AddContactModal({ open, onClose, onAdd }: AddContactModalProps) 
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Add Contact" width="32rem">
+    <Modal open={open} onClose={handleClose} title="New contact" icon={AddressBookIcon} description="Save a client, partner or prospect." width="32rem">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Full Name">
             <Input
               required
@@ -62,7 +63,7 @@ export function AddContactModal({ open, onClose, onAdd }: AddContactModalProps) 
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Email">
             <Input
               type="email"
@@ -97,7 +98,7 @@ export function AddContactModal({ open, onClose, onAdd }: AddContactModalProps) 
           />
         </Field>
 
-        <ModalActions onClose={handleClose} submitLabel="Add Contact" />
+        <ModalActions onClose={handleClose} submitLabel="Save contact" />
       </form>
     </Modal>
   );

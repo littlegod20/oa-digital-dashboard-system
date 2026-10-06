@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { UserPlusIcon } from "@phosphor-icons/react";
 import { Modal, Field, Input, ModalActions } from "./modal";
 
 const ROLES = [
@@ -63,7 +64,7 @@ export function AddMemberModal({ open, onClose, onSave, initial }: MemberModalPr
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title={editing ? "Edit Team Member" : "Add Team Member"} width="28rem">
+    <Modal open={open} onClose={handleClose} title={editing ? "Edit team member" : "Add team member"} icon={UserPlusIcon} description="Team members can be assigned to deals." width="28rem">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Field label="Full Name">
           <Input
@@ -107,7 +108,7 @@ export function AddMemberModal({ open, onClose, onSave, initial }: MemberModalPr
           />
         </Field>
 
-        <ModalActions onClose={handleClose} submitLabel={editing ? "Save Changes" : "Add Member"} />
+        <ModalActions onClose={handleClose} submitLabel={editing ? "Save changes" : "Add member"} />
       </form>
     </Modal>
   );

@@ -50,7 +50,8 @@ export function formatRelativeDate(dateStr: string): string {
 
 export function getInitials(name: string): string {
   return name
-    .split(' ')
+    .split(/\s+/)
+    .filter((w) => /^[\p{L}\p{N}]/u.test(w))
     .map((n) => n[0])
     .join('')
     .toUpperCase()

@@ -1,8 +1,15 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { BalanceCard } from '@/components/ui/balance-card'
-import { formatCurrency, formatRelativeDate } from '@/lib/utils'
+import { ChartLineUpIcon, PlusIcon, ReceiptIcon, TrendUpIcon } from '@phosphor-icons/react'
+import { PageHeader } from '@/components/ui/page-header'
+import { Card, CardHeader } from '@/components/ui/card'
+import { StatStrip } from '@/components/ui/stat-strip'
+import { Segmented } from '@/components/ui/segmented'
+import { EmptyState, PageSkeleton, Progress } from '@/components/ui/states'
+import { Avatar } from '@/components/ui/avatar'
+import { CashCard, InkMetric, TransactionRow } from '@/components/dashboard/widgets'
+import { formatCurrency } from '@/lib/utils'
 import type { TransactionType } from '@/lib/types'
 import { AddTransactionModal } from '@/components/ui/add-transaction-modal'
 import { useRole } from '@/lib/role-context'
@@ -10,13 +17,14 @@ import { useRole } from '@/lib/role-context'
 const TX_TYPES = ['all', 'income', 'payment_received', 'expense', 'transfer'] as const
 type FilterType = typeof TX_TYPES[number]
 const TYPE_LABEL: Record<TransactionType | 'all', string> = {
-  all: 'All', income: 'Income', payment_received: 'Received', expense: 'Expense', transfer: 'Transfer',
+  all: 'All', income: 'Income', payment_received: 'Received', expense: 'Expenses', transfer: 'Transfers',
 }
 
 type Tx = { id: string; type: string; description: string; amount: string | number; currency: string; person?: string | null; category: string; date: string; orderId?: string | null }
 type Deal = { id: string; client: string; title: string; value: string | number; currency: string; phase: string; paid: string | number; nextAction: string }
 
 function n(v: string | number) { return Number(v) }
+function ghsK(v: number) { return `GHS ${(v / 1000).toFixed(0)}K` }
 
 export default function FinancePage() {
   const [filter, setFilter] = useState<FilterType>('all')
@@ -47,122 +55,82 @@ export default function FinancePage() {
     return { revenueGHS: ghsIn, expensesGHS: ghsOut, profitGHS: ghsIn - ghsOut, balanceGHS: ghsIn - ghsOut, balanceUSD: usdIn - usdOut }
   }, [transactions])
 
+  const typeOptions = TX_TYPES.map((type) => ({
+    value: type,
+    label: TYPE_LABEL[type],
+    count: type === 'all' ? transactions.length : transactions.filter((t) => t.type === type).length,
+  }))
+
+  const totalOwed = outstanding.reduce((s, d) => s + (n(d.value) - n(d.paid)), 0)
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display font-bold text-[20px] leading-tight" style={{ color: "var(--text-primary)" }}>Finance</h1>
-          <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-            {isManagement ? 'Transactions & account balances' : 'Transaction entry & payment tracking'}
-          </p>
-        </div>
-        <button onClick={() => setTxModalOpen(true)} className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
-          + Add Transaction
-        </button>
-      </div>
-
-      {isManagement && !loading && (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <BalanceCard currency="GHS" balance={kpi.balanceGHS} label="Cedis Account" />
-            <BalanceCard currency="USD" balance={kpi.balanceUSD} label="Dollar Account" />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: 'Revenue',  value: formatCurrency(kpi.revenueGHS,  'GHS'), color: "var(--badge-success-text)" },
-              { label: 'Expenses', value: formatCurrency(kpi.expensesGHS, 'GHS'), color: "var(--badge-danger-text)" },
-              { label: 'Profit',   value: formatCurrency(kpi.profitGHS,   'GHS'), color: "var(--brand)" },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="rounded-xl px-4 py-3" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
-                <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
-                <p className="font-display font-bold text-[15px] mt-1" style={{ color }}>{value}</p>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {isSales && !loading && outstanding.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display font-semibold text-[14px]" style={{ color: "var(--text-primary)" }}>Outstanding Payments</h2>
-            <span className="text-[11.5px] font-medium px-2.5 py-0.5 rounded-full" style={{ background: "var(--badge-warning-bg)", color: "var(--badge-warning-text)" }}>
-              {outstanding.length} to follow up
-            </span>
-          </div>
-          <div className="rounded-2xl overflow-hidden divide-y" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderColor: "var(--divider)" }}>
-            {outstanding.map((deal) => {
-              const owed = n(deal.value) - n(deal.paid)
-              const pct = Math.round((n(deal.paid) / n(deal.value)) * 100)
-              return (
-                <div key={deal.id} className="px-4 py-3.5 trow">
-                  <div className="flex items-center justify-between gap-3 mb-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-[13.5px] leading-tight truncate" style={{ color: "var(--text-primary)" }}>{deal.client}</p>
-                      <p className="text-[11.5px] mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>{deal.title} · {deal.nextAction}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-semibold text-[13.5px]" style={{ color: "var(--badge-warning-text)" }}>
-                        {formatCurrency(owed, deal.currency as 'GHS'|'USD')} owed
-                      </p>
-                      <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-                        {pct}% paid of {formatCurrency(n(deal.value), deal.currency as 'GHS'|'USD')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full overflow-hidden" style={{ background: "var(--divider)" }}>
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--badge-success-text)" }} />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        {TX_TYPES.map((type) => (
-          <button key={type} onClick={() => setFilter(type)}
-            className="whitespace-nowrap text-[12.5px] font-medium px-3.5 py-1.5 rounded-full border shrink-0 transition-colors"
-            style={{
-              background: filter === type ? "var(--brand-strong)" : "var(--card-bg)",
-              color: filter === type ? "var(--brand-on)" : "var(--text-secondary)",
-              borderColor: filter === type ? "var(--brand-strong)" : "var(--divider)",
-            }}>
-            {TYPE_LABEL[type]}
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Money"
+        title="Finance"
+        description={isManagement ? 'Account balances, cash flow and every transaction.' : 'Record transactions and track payments owed.'}
+        actions={
+          <button onClick={() => setTxModalOpen(true)} className="btn btn-primary">
+            <PlusIcon size={16} weight="bold" />
+            New transaction
           </button>
-        ))}
-      </div>
+        }
+      />
 
       {loading ? (
-        <div className="py-12 text-center text-[13.5px]" style={{ color: "var(--text-muted)" }}>Loading transactions...</div>
+        <PageSkeleton />
       ) : (
-        <div className="rounded-2xl overflow-hidden divide-y" style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)", borderColor: "var(--divider)" }}>
-          {filtered.length === 0 ? (
-            <p className="text-center py-12 text-[13.5px]" style={{ color: "var(--text-muted)" }}>No transactions.</p>
-          ) : filtered.map((tx) => {
-            const isIn = tx.type === 'income' || tx.type === 'payment_received'
-            const isTransfer = tx.type === 'transfer'
-            const iconColor = isIn ? "var(--badge-success-text)" : isTransfer ? "var(--brand)" : "var(--badge-danger-text)"
-            const iconBg = isIn ? "var(--badge-success-bg)" : isTransfer ? "var(--badge-info-bg)" : "var(--badge-danger-bg)"
-            return (
-              <div key={tx.id} className="flex items-center gap-3 px-4 py-4 trow">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ background: iconBg, color: iconColor }}>
-                  {isIn ? '↓' : isTransfer ? '⇄' : '↑'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-[13.5px] truncate" style={{ color: "var(--text-primary)" }}>{tx.description}</p>
-                  <p className="text-[11.5px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-                    {tx.category}{tx.person ? ` · ${tx.person}` : ''} · {formatRelativeDate(tx.date)}
-                  </p>
-                </div>
-                <p className="font-semibold text-[14px] whitespace-nowrap" style={{ color: iconColor }}>
-                  {isIn ? '+' : isTransfer ? '' : '-'}{formatCurrency(n(tx.amount), tx.currency as 'GHS'|'USD')}
-                </p>
+        <>
+          {isManagement && (
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+              <div className="space-y-5 xl:col-span-8">
+                <StatStrip
+                  stats={[
+                    { label: 'Revenue', value: ghsK(kpi.revenueGHS), icon: ChartLineUpIcon, hint: formatCurrency(kpi.revenueGHS, 'GHS'), trend: 'up' },
+                    { label: 'Expenses', value: ghsK(kpi.expensesGHS), icon: ReceiptIcon, hint: formatCurrency(kpi.expensesGHS, 'GHS'), trend: 'down' },
+                    { label: 'Profit', value: ghsK(kpi.profitGHS), icon: TrendUpIcon, hint: kpi.revenueGHS > 0 ? `${((kpi.profitGHS / kpi.revenueGHS) * 100).toFixed(0)}% margin` : '—', trend: kpi.profitGHS >= 0 ? 'up' : 'down' },
+                  ]}
+                />
+                <OutstandingCard deals={outstanding} />
               </div>
-            )
-          })}
-        </div>
+              <CashCard
+                className="xl:sticky xl:top-0 xl:col-span-4 xl:self-start"
+                balanceGHS={kpi.balanceGHS}
+                balanceUSD={kpi.balanceUSD}
+                footer={
+                  <>
+                    <InkMetric label="Spend ratio" value={kpi.revenueGHS > 0 ? `${((kpi.expensesGHS / kpi.revenueGHS) * 100).toFixed(0)}%` : '—'} tone="warm" />
+                    <InkMetric label="Owed to us" value={ghsK(totalOwed)} />
+                  </>
+                }
+              />
+            </div>
+          )}
+
+          {isSales && <OutstandingCard deals={outstanding} />}
+
+          <Card flush>
+            <div className="flex flex-wrap items-center justify-between gap-3 p-5 md:p-6">
+              <div>
+                <h2 className="font-display text-[17px] font-semibold text-fg">Transactions</h2>
+                <p className="mt-1 text-[12.5px] text-fg-3">{filtered.length} records</p>
+              </div>
+              <Segmented label="Filter by type" options={typeOptions} value={filter} onChange={setFilter} />
+            </div>
+            {filtered.length === 0 ? (
+              <EmptyState
+                icon={ReceiptIcon}
+                title="No transactions"
+                description="Nothing matches this filter yet."
+                className="border-t border-line"
+              />
+            ) : (
+              <div className="divide-y divide-line border-t border-line">
+                {filtered.map((tx) => <TransactionRow key={tx.id} tx={tx} showType />)}
+              </div>
+            )}
+          </Card>
+        </>
       )}
 
       <AddTransactionModal
@@ -175,5 +143,45 @@ export default function FinancePage() {
         }}
       />
     </div>
+  )
+}
+
+function OutstandingCard({ deals }: { deals: Deal[] }) {
+  if (deals.length === 0) return null
+  return (
+    <Card flush>
+      <div className="p-5 pb-0 md:p-6 md:pb-0">
+        <CardHeader
+          title="Outstanding payments"
+          description="Balances still to collect"
+          action={<span className="badge badge-warning">{deals.length} to follow up</span>}
+          className="mb-3"
+        />
+      </div>
+      <ul className="divide-y divide-line">
+        {deals.map((deal) => {
+          const owed = n(deal.value) - n(deal.paid)
+          const pct = n(deal.value) > 0 ? Math.round((n(deal.paid) / n(deal.value)) * 100) : 0
+          const cur = deal.currency as 'GHS' | 'USD'
+          return (
+            <li key={deal.id} className="trow flex items-center gap-3.5 px-5 py-3.5 md:px-6">
+              <Avatar name={deal.client} size={40} square />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13.5px] font-semibold text-fg">{deal.client}</p>
+                <p className="truncate text-[12px] text-fg-3">{deal.nextAction || deal.title}</p>
+              </div>
+              <div className="hidden w-32 sm:block">
+                <Progress value={pct} className="h-1.5" tone="warm" />
+                <p className="mt-1 text-[11px] text-fg-3">{pct}% paid</p>
+              </div>
+              <div className="w-32 shrink-0 text-right">
+                <p className="tabular text-[13.5px] font-semibold text-warning">{formatCurrency(owed, cur)}</p>
+                <p className="tabular text-[11px] text-fg-3">of {formatCurrency(n(deal.value), cur)}</p>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+    </Card>
   )
 }

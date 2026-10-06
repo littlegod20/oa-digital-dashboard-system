@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ReceiptIcon } from "@phosphor-icons/react";
 import { Modal, Field, Input, Select, ModalActions } from "./modal";
 
 const CURRENCIES = ["GHS", "USD", "EUR", "GBP"];
@@ -50,7 +51,7 @@ export function AddTransactionModal({ open, onClose, onAdd }: AddTransactionModa
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Add Transaction" width="32rem">
+    <Modal open={open} onClose={handleClose} title="New transaction" icon={ReceiptIcon} description="Record money coming in or going out." width="32rem">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <Field label="Description">
           <Input
@@ -61,7 +62,7 @@ export function AddTransactionModal({ open, onClose, onAdd }: AddTransactionModa
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Amount">
             <Input
               required
@@ -85,7 +86,7 @@ export function AddTransactionModal({ open, onClose, onAdd }: AddTransactionModa
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Type">
             <Select
               value={form.type}
@@ -116,7 +117,7 @@ export function AddTransactionModal({ open, onClose, onAdd }: AddTransactionModa
           />
         </Field>
 
-        <ModalActions onClose={handleClose} submitLabel="Add Transaction" />
+        <ModalActions onClose={handleClose} submitLabel="Save transaction" />
       </form>
     </Modal>
   );

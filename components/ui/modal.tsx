@@ -1,102 +1,78 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { createPortal } from "react-dom";
+import type { Icon } from "@phosphor-icons/react";
+import { WarningIcon, XIcon } from "@phosphor-icons/react";
+
+export { Field, Input, Select, Textarea } from "./field";
 
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
+  description?: string;
+  icon?: Icon;
   children: ReactNode;
   width?: string;
 }
 
-export function Modal({ open, onClose, title, children, width = "28rem" }: ModalProps) {
+function useModalBehaviour(open: boolean, onClose: () => void) {
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handler);
+      document.body.style.overflow = prev;
+    };
   }, [open, onClose]);
+}
 
-  useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => { document.body.style.overflow = ""; };
-  }, [open]);
+function Backdrop({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  return createPortal(
+    <div
+      className="animate-fade fixed inset-0 z-[60] flex items-end justify-center bg-[rgba(8,12,21,0.45)] p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {children}
+    </div>,
+    document.body,
+  );
+}
 
+export function Modal({ open, onClose, title, description, icon: IconCmp, children, width = "30rem" }: ModalProps) {
+  useModalBehaviour(open, onClose);
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(7,20,38,0.55)", backdropFilter: "blur(4px)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
+    <Backdrop onClose={onClose}>
       <div
-        className="w-full rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
-        style={{ maxWidth: width, background: "var(--card-bg)", border: "1px solid var(--divider)" }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="animate-pop flex max-h-[92dvh] w-full flex-col rounded-t-[28px] bg-solid shadow-pop sm:rounded-[28px]"
+        style={{ maxWidth: width }}
       >
-        <div
-          className="flex items-center justify-between px-6 py-4 shrink-0"
-          style={{ borderBottom: "1px solid var(--divider)" }}
-        >
-          <h2 className="font-semibold text-[15px]" style={{ color: "var(--text-primary)" }}>{title}</h2>
-          <button
-            type="button" onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-            style={{ color: "var(--text-muted)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--input-bg)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-          >
-            <X className="size-4" />
+        <div className="flex items-start gap-3.5 px-6 pb-2 pt-6">
+          {IconCmp && (
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+              <IconCmp size={22} weight="duotone" />
+            </div>
+          )}
+          <div className="min-w-0 flex-1 pt-0.5">
+            <h2 className="font-display text-[19px] font-semibold leading-tight text-fg">{title}</h2>
+            {description && <p className="mt-1 text-[12.5px] text-fg-3">{description}</p>}
+          </div>
+          <button type="button" onClick={onClose} className="icon-btn icon-btn-sm -mr-2 -mt-1" aria-label="Close">
+            <XIcon size={18} />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">{children}</div>
       </div>
-    </div>
-  );
-}
-
-const inputStyle = {
-  background: "var(--input-bg)", color: "var(--text-primary)",
-  border: "1px solid transparent", borderRadius: "0.625rem",
-  padding: "0.5rem 0.75rem", fontSize: "13.5px", width: "100%",
-  outline: "none", transition: "border-color 0.15s", fontFamily: "inherit",
-} as const;
-
-export function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-[12px] font-medium" style={{ color: "var(--text-muted)" }}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input {...props} style={inputStyle}
-      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--brand-ring)"; props.onFocus?.(e); }}
-      onBlur={(e)  => { e.currentTarget.style.borderColor = "transparent"; props.onBlur?.(e); }}
-    />
-  );
-}
-
-export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select {...props} style={{ ...inputStyle, cursor: "pointer" }}
-      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--brand-ring)"; props.onFocus?.(e); }}
-      onBlur={(e)  => { e.currentTarget.style.borderColor = "transparent"; props.onBlur?.(e); }}
-    />
-  );
-}
-
-export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return (
-    <textarea {...props} style={{ ...inputStyle, resize: "vertical", minHeight: "80px" }}
-      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--brand-ring)"; props.onFocus?.(e); }}
-      onBlur={(e)  => { e.currentTarget.style.borderColor = "transparent"; props.onBlur?.(e); }}
-    />
+    </Backdrop>
   );
 }
 
@@ -105,6 +81,8 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = "Remove",
+  icon: IconCmp = WarningIcon,
+  tone = "danger",
   onConfirm,
   onClose,
 }: {
@@ -112,51 +90,58 @@ export function ConfirmDialog({
   title: string;
   message: string;
   confirmLabel?: string;
+  icon?: Icon;
+  tone?: "danger" | "primary";
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  useModalBehaviour(open, onClose);
   if (!open) return null;
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(7,20,38,0.55)", backdropFilter: "blur(4px)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
+    <Backdrop onClose={onClose}>
       <div
-        className="w-full max-w-sm rounded-2xl shadow-2xl p-6"
-        style={{ background: "var(--card-bg)", border: "1px solid var(--divider)" }}
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={title}
+        className="animate-pop w-full max-w-sm rounded-t-[28px] bg-solid p-6 shadow-pop sm:rounded-[28px]"
       >
-        <h2 className="font-semibold text-[16px] mb-1" style={{ color: "var(--text-primary)" }}>
-          {title}
-        </h2>
-        <p className="text-[13.5px] mb-6" style={{ color: "var(--text-secondary)" }}>
-          {message}
-        </p>
-        <div className="flex gap-2 justify-end">
-          <button type="button" onClick={onClose} className="btn-secondary px-4 py-2 rounded-xl text-[13px] font-medium">
+        <div
+          className={
+            tone === "danger"
+              ? "mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-danger-soft text-danger"
+              : "mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand"
+          }
+        >
+          <IconCmp size={24} weight="duotone" />
+        </div>
+        <h2 className="font-display text-[19px] font-semibold text-fg">{title}</h2>
+        <p className="mb-6 mt-1.5 text-[13.5px] leading-relaxed text-fg-2">{message}</p>
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="btn btn-secondary">
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
-            style={{ background: "var(--badge-danger-text)" }}
+            className={tone === "danger" ? "btn btn-danger" : "btn btn-primary"}
           >
             {confirmLabel}
           </button>
         </div>
       </div>
-    </div>
+    </Backdrop>
   );
 }
 
 export function ModalActions({ onClose, submitLabel = "Save" }: { onClose: () => void; submitLabel?: string }) {
   return (
-    <div className="flex justify-end gap-2 mt-6">
-      <button type="button" onClick={onClose}
-        className="btn-secondary px-4 py-2 rounded-xl text-[13px] font-medium">Cancel</button>
-      <button type="submit"
-        className="btn-primary px-4 py-2 rounded-xl text-[13px] font-semibold">{submitLabel}</button>
+    <div className="-mx-6 mt-6 flex justify-end gap-2 border-t border-line px-6 pt-5">
+      <button type="button" onClick={onClose} className="btn btn-secondary">
+        Cancel
+      </button>
+      <button type="submit" className="btn btn-primary">
+        {submitLabel}
+      </button>
     </div>
   );
 }

@@ -1,307 +1,151 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  GitBranch,
-  Wallet,
-  Users,
-  BookUser,
-  PanelLeftClose,
-  PanelLeftOpen,
-  ChevronDown,
-  Settings,
-  LogOut,
-} from "lucide-react";
+import { usePathname } from "next/navigation";
+import { SidebarSimpleIcon, SignOutIcon, XIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
-import { useRole } from "@/lib/role-context";
-
-const NAV_SECTIONS = [
-  {
-    label: "Main",
-    items: [
-      { href: "/dashboard",          label: "Overview",  icon: LayoutDashboard },
-      { href: "/dashboard/pipeline", label: "Pipeline",  icon: GitBranch },
-    ],
-  },
-  {
-    label: "Management",
-    items: [
-      { href: "/dashboard/finance",  label: "Finance",   icon: Wallet },
-      { href: "/dashboard/team",     label: "Team",      icon: Users },
-      { href: "/dashboard/contacts", label: "Contacts",  icon: BookUser },
-    ],
-  },
-];
+import { BrandMark } from "@/components/ui/brand-mark";
+import { NAV_SECTIONS, SETTINGS_ITEM, isActivePath, type NavItem } from "./nav";
 
 type SidebarProps = {
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
+  onSignOut: () => void;
 };
 
-export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [signOutModalOpen, setSignOutModalOpen] = useState(false);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-  const { user, logout } = useRole();
+export function Sidebar({ collapsed, onToggleCollapsed, mobileOpen, onMobileClose, onSignOut }: SidebarProps) {
+  const pathname = usePathname();
 
-  const initials = user?.initials ?? "OA";
-  const displayName = user?.name ?? "User";
-  const roleLabel = user?.role === "management" ? "Management" : user?.role === "sales" ? "Sales" : "";
-
+  // Close the mobile drawer whenever the route changes
   useEffect(() => {
-    if (!popoverOpen) return;
-    function handler(e: MouseEvent) {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setPopoverOpen(false);
-      }
-    }
-    window.addEventListener("mousedown", handler);
-    return () => window.removeEventListener("mousedown", handler);
-  }, [popoverOpen]);
+    onMobileClose();
+  }, [pathname, onMobileClose]);
 
   return (
     <>
       <aside
-        className="hidden shrink-0 flex-col md:flex h-full"
+        className="card hidden h-full shrink-0 flex-col overflow-hidden !rounded-[26px] md:flex"
         style={{
-          width: collapsed ? "5rem" : "15rem",
+          width: collapsed ? "5.25rem" : "16rem",
           background: "var(--sidebar-bg)",
-          borderRight: "1px solid var(--sidebar-border)",
-          transition: "width 0.2s ease",
+          borderColor: "var(--sidebar-border)",
+          transition: "width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)",
         }}
       >
-        {/* Logo row */}
-        <div
-          className={cn(
-            "flex h-14 shrink-0 items-center",
-            collapsed ? "justify-center px-2" : "px-4 gap-2",
-          )}
-          style={{ borderBottom: "1px solid var(--sidebar-border)" }}
-        >
-          {!collapsed && (
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <Image src="/oa-logo.jpeg" alt="OA Digital" width={28} height={28} className="rounded-md shrink-0 object-cover" />
-              <span className="font-display font-bold text-white text-[17px] tracking-tight truncate">
-                OA Digital
-              </span>
-            </div>
-          )}
-          {collapsed && (
-            <Image src="/oa-logo.jpeg" alt="OA Digital" width={28} height={28} className="rounded-md object-cover" />
-          )}
-          <button
-            type="button"
-            onClick={onToggleCollapsed}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors"
-            style={{ color: "var(--sidebar-section)" }}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "var(--sidebar-hover)";
-              (e.currentTarget as HTMLElement).style.color = "var(--sidebar-text-active)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "transparent";
-              (e.currentTarget as HTMLElement).style.color = "var(--sidebar-section)";
-            }}
-          >
-            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-          </button>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-5">
-          {NAV_SECTIONS.map((section) => (
-            <div key={section.label}>
-              {!collapsed && (
-                <p
-                  className="px-2 mb-1 text-[10.5px] font-semibold uppercase tracking-widest"
-                  style={{ color: "var(--sidebar-section)" }}
-                >
-                  {section.label}
-                </p>
-              )}
-              <div className="space-y-0.5">
-                {section.items.map((item) => (
-                  <NavItem
-                    key={item.href}
-                    href={item.href}
-                    label={item.label}
-                    icon={item.icon}
-                    collapsed={collapsed}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        {/* User footer */}
-        <div
-          className={cn("shrink-0 p-2 relative", collapsed && "flex justify-center")}
-          style={{ borderTop: "1px solid var(--sidebar-border)" }}
-          ref={popoverRef}
-        >
-          {/* Popover */}
-          {popoverOpen && (
-            <div
-              className="absolute bottom-[calc(100%+8px)] left-2 right-2 rounded-xl overflow-hidden shadow-xl z-50"
-              style={{
-                background: "var(--card-bg)",
-                border: "1px solid var(--divider)",
-                minWidth: "10rem",
-              }}
-            >
-              {/* Role badge */}
-              <div className="px-3 py-2.5" style={{ borderBottom: "1px solid var(--divider)" }}>
-                <p className="text-[11.5px]" style={{ color: "var(--text-muted)" }}>{user?.email}</p>
-                <span
-                  className="inline-block mt-1 text-[10.5px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                  style={{
-                    background: user?.role === "management" ? "var(--brand-soft)" : "var(--badge-success-bg)",
-                    color: user?.role === "management" ? "var(--brand)" : "var(--badge-success-text)",
-                  }}
-                >
-                  {roleLabel}
-                </span>
-              </div>
-              <Link
-                href="/dashboard/settings"
-                onClick={() => setPopoverOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2.5 text-[13px] transition-colors"
-                style={{ color: "var(--text-primary)" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--input-bg)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-              >
-                <Settings className="size-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
-                Settings
-              </Link>
-              <div style={{ height: "1px", background: "var(--divider)" }} />
-              <button
-                type="button"
-                onClick={() => { setPopoverOpen(false); setSignOutModalOpen(true); }}
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-[13px] transition-colors"
-                style={{ color: "var(--badge-danger-text)" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--badge-danger-bg)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-              >
-                <LogOut className="size-3.5 shrink-0" />
-                Sign out
-              </button>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setPopoverOpen((o) => !o)}
-            className={cn("snav-item w-full", collapsed && "is-collapsed", popoverOpen && "active")}
-          >
-            <div
-              className="h-7 w-7 shrink-0 rounded-lg flex items-center justify-center text-[11px] font-bold text-white"
-              style={{ background: "var(--oa-blue)" }}
-            >
-              {initials}
-            </div>
-            {!collapsed && (
-              <>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="text-[12.5px] font-medium truncate" style={{ color: "var(--sidebar-text-active)" }}>
-                    {displayName}
-                  </p>
-                  <p className="text-[11px] truncate" style={{ color: "var(--sidebar-text)" }}>
-                    {roleLabel}
-                  </p>
-                </div>
-                <ChevronDown
-                  className="size-3.5 shrink-0 transition-transform"
-                  style={{
-                    color: "var(--sidebar-section)",
-                    transform: popoverOpen ? "rotate(180deg)" : "rotate(0deg)",
-                  }}
-                />
-              </>
-            )}
-          </button>
-        </div>
+        <SidebarContent collapsed={collapsed} onToggleCollapsed={onToggleCollapsed} onSignOut={onSignOut} />
       </aside>
 
-      {/* Sign out confirmation modal */}
-      {signOutModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(7,20,38,0.55)", backdropFilter: "blur(4px)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setSignOutModalOpen(false); }}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl shadow-2xl p-6"
-            style={{ background: "var(--card-bg)", border: "1px solid var(--divider)" }}
-          >
-            <div
-              className="flex h-11 w-11 items-center justify-center rounded-xl mb-4"
-              style={{ background: "var(--badge-danger-bg)" }}
-            >
-              <LogOut className="size-5" style={{ color: "var(--badge-danger-text)" }} />
-            </div>
-            <h2 className="font-semibold text-[16px] mb-1" style={{ color: "var(--text-primary)" }}>
-              Sign out?
-            </h2>
-            <p className="text-[13.5px] mb-6" style={{ color: "var(--text-secondary)" }}>
-              You'll be returned to the login screen. Any unsaved changes will be lost.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                onClick={() => setSignOutModalOpen(false)}
-                className="btn-secondary px-4 py-2 rounded-xl text-[13px] font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  setSignOutModalOpen(false);
-                  await logout();
-                  router.push("/login");
-                }}
-                className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ background: "var(--badge-danger-text)" }}
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="animate-fade absolute inset-0 bg-[rgba(8,12,21,0.45)] backdrop-blur-sm" onClick={onMobileClose} />
+          <aside className="animate-drawer absolute inset-y-2 left-2 flex w-[17rem] max-w-[85vw] flex-col overflow-hidden rounded-[26px] bg-solid shadow-pop">
+            <SidebarContent collapsed={false} onClose={onMobileClose} onSignOut={onSignOut} />
+          </aside>
         </div>
       )}
     </>
   );
 }
 
-function NavItem({
-  href,
-  label,
-  icon: Icon,
+function SidebarContent({
   collapsed,
+  onToggleCollapsed,
+  onClose,
+  onSignOut,
 }: {
-  href: string;
-  label: string;
-  icon: React.ElementType;
   collapsed: boolean;
+  onToggleCollapsed?: () => void;
+  onClose?: () => void;
+  onSignOut: () => void;
 }) {
-  const pathname = usePathname();
-  const isActive = pathname === href;
+  return (
+    <>
+      {/* Brand */}
+      <div className={cn("flex h-[4.5rem] shrink-0 items-center gap-3", collapsed ? "justify-center px-2" : "px-5")}>
+        {collapsed ? (
+          <button type="button" onClick={onToggleCollapsed} aria-label="Expand sidebar" title="Expand sidebar">
+            <BrandMark size={38} />
+          </button>
+        ) : (
+          <>
+            <BrandMark size={38} />
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="truncate font-display text-[16px] font-semibold text-fg">OA Digital</p>
+              <p className="truncate text-[11px] text-fg-3">Command Center</p>
+            </div>
+            {onToggleCollapsed && (
+              <button
+                type="button"
+                onClick={onToggleCollapsed}
+                className="icon-btn icon-btn-sm"
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+              >
+                <SidebarSimpleIcon size={18} />
+              </button>
+            )}
+            {onClose && (
+              <button type="button" onClick={onClose} className="icon-btn icon-btn-sm" aria-label="Close navigation">
+                <XIcon size={18} />
+              </button>
+            )}
+          </>
+        )}
+      </div>
 
+      {/* Nav */}
+      <nav className={cn("flex-1 space-y-6 overflow-y-auto pb-4 pt-2", collapsed ? "px-3" : "px-4")}>
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.label}>
+            {collapsed ? (
+              <div className="mx-auto mb-2 h-px w-6 bg-line" />
+            ) : (
+              <p className="mb-2 px-3 text-[11px] font-medium" style={{ color: "var(--sidebar-section)" }}>
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-1">
+              {section.items.map((item) => (
+                <NavLink key={item.href} item={item} collapsed={collapsed} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className={cn("shrink-0 space-y-1 border-t border-line py-3", collapsed ? "px-3" : "px-4")}>
+        <NavLink item={SETTINGS_ITEM} collapsed={collapsed} />
+        <button
+          type="button"
+          onClick={onSignOut}
+          className={cn("snav-item hover:!text-danger", collapsed && "is-collapsed")}
+          title={collapsed ? "Sign out" : undefined}
+        >
+          <SignOutIcon size={20} className="snav-icon shrink-0" />
+          {!collapsed && <span>Sign out</span>}
+        </button>
+      </div>
+    </>
+  );
+}
+
+function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+  const pathname = usePathname();
+  const active = isActivePath(pathname, item.href);
+  const Icon = item.icon;
   return (
     <Link
-      href={href}
-      className={cn("snav-item", isActive && "active", collapsed && "is-collapsed")}
-      title={collapsed ? label : undefined}
+      href={item.href}
+      className={cn("snav-item", active && "active", collapsed && "is-collapsed")}
+      title={collapsed ? item.label : undefined}
+      aria-current={active ? "page" : undefined}
     >
-      <Icon className="size-4 shrink-0" />
-      {!collapsed && <span>{label}</span>}
+      <Icon size={20} weight={active ? "duotone" : "regular"} className="snav-icon shrink-0" />
+      {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );
 }

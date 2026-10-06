@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HandshakeIcon } from "@phosphor-icons/react";
 import { Modal, Field, Input, Select, Textarea, ModalActions } from "./modal";
 import { PHASE_META, type Currency, type PipelinePhase } from "@/lib/types";
 
@@ -80,9 +81,9 @@ export function AddDealModal({ open, onClose, onSave, initial, assignees = [] }:
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title={editing ? "Edit Deal" : "Add Deal"} width="32rem">
+    <Modal open={open} onClose={handleClose} title={editing ? "Edit deal" : "New deal"} icon={HandshakeIcon} description={editing ? "Update the deal details and payment status." : "Track a new opportunity in the pipeline."} width="32rem">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Client Name">
             <Input
               required
@@ -101,7 +102,7 @@ export function AddDealModal({ open, onClose, onSave, initial, assignees = [] }:
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Value">
             <Input
               type="number"
@@ -124,7 +125,7 @@ export function AddDealModal({ open, onClose, onSave, initial, assignees = [] }:
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Paid">
             <Input
               type="number"
@@ -148,7 +149,7 @@ export function AddDealModal({ open, onClose, onSave, initial, assignees = [] }:
           </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Assignee">
             <Input
               list="deal-assignees"
@@ -181,7 +182,7 @@ export function AddDealModal({ open, onClose, onSave, initial, assignees = [] }:
           />
         </Field>
 
-        <ModalActions onClose={handleClose} submitLabel={editing ? "Save Changes" : "Add Deal"} />
+        <ModalActions onClose={handleClose} submitLabel={editing ? "Save changes" : "Create deal"} />
       </form>
     </Modal>
   );

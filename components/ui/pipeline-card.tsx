@@ -1,131 +1,97 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import type { BadgeTone } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/utils";
+import { ArrowRightIcon, PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react";
+import { cn, formatCurrency, formatRelativeDate } from "@/lib/utils";
 import type { Deal } from "@/lib/types";
-import { PHASE_META } from "@/lib/types";
-import { ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { Avatar } from "@/components/ui/avatar";
+import { PhaseBadge } from "@/components/ui/phase-badge";
+import { Progress } from "@/components/ui/states";
 
 interface PipelineCardProps {
   deal: Deal;
   onEdit?: () => void;
   onDelete?: () => void;
+  className?: string;
 }
 
-const PHASE_TONE: Record<string, BadgeTone> = {
-  lead:     "neutral",
-  proposal: "info",
-  await:    "warning",
-  meet:     "info",
-  action:   "warning",
-  progress: "success",
-  done:     "success",
-  hold:     "neutral",
-};
-
-export function PipelineCard({ deal, onEdit, onDelete }: PipelineCardProps) {
+export function PipelineCard({ deal, onEdit, onDelete, className }: PipelineCardProps) {
   const outstanding = deal.value - deal.paid;
   const progress = deal.value > 0 ? (deal.paid / deal.value) * 100 : 0;
-  const phaseMeta = PHASE_META[deal.phase];
-  const tone = PHASE_TONE[deal.phase] ?? "neutral";
 
   return (
-    <Card className="p-4 space-y-3">
-      {/* Top row */}
-      <div className="flex items-start justify-between gap-3">
+    <article className={cn("card flex flex-col p-5 transition-shadow hover:shadow-pop", className)}>
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <Avatar name={deal.client} size={44} square />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-[14px] leading-tight" style={{ color: "var(--text-primary)" }}>
-              {deal.client}
-            </p>
-            <Badge tone={tone} dot>{phaseMeta?.label ?? deal.phase}</Badge>
-          </div>
-          <p className="text-[12.5px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
-            {deal.title}
-          </p>
+          <p className="truncate font-display text-[16px] font-semibold leading-tight text-fg">{deal.client}</p>
+          <p className="mt-0.5 truncate text-[12.5px] text-fg-2">{deal.title}</p>
         </div>
-        <div className="text-right shrink-0">
-          <p className="font-display font-bold text-[15px]" style={{ color: "var(--text-primary)" }}>
-            {formatCurrency(deal.value, deal.currency)}
-          </p>
-          {outstanding > 0 && (
-            <p className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-              {formatCurrency(outstanding, deal.currency)} remaining
-            </p>
-          )}
-        </div>
+        <PhaseBadge phase={deal.phase} />
       </div>
 
-      {/* Progress bar */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
-            Collected {progress.toFixed(0)}%
-          </span>
-          <span className="text-[11px]" style={{ color: "var(--badge-success-text)" }}>
-            {formatCurrency(deal.paid, deal.currency)}
-          </span>
+      {/* Meta grid */}
+      <dl className="mt-5 grid grid-cols-3 gap-3 text-[12px]">
+        <div className="min-w-0">
+          <dt className="text-fg-3">Owner</dt>
+          <dd className="mt-0.5 truncate font-semibold text-fg">{deal.assignee || "—"}</dd>
         </div>
-        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--progress-bg)" }}>
-          <div
-            className="h-full rounded-full transition-all"
-            style={{
-              width: `${progress}%`,
-              background: progress >= 100
-                ? "var(--badge-success-text)"
-                : progress > 50
-                ? "var(--oa-blue)"
-                : "var(--oa-amber)",
-            }}
-          />
+        <div className="min-w-0">
+          <dt className="text-fg-3">Value</dt>
+          <dd className="tabular mt-0.5 truncate font-semibold text-fg">{formatCurrency(deal.value, deal.currency)}</dd>
         </div>
+        <div className="min-w-0">
+          <dt className="text-fg-3">Remaining</dt>
+          <dd className={cn("tabular mt-0.5 truncate font-semibold", outstanding > 0 ? "text-warning" : "text-success")}>
+            {outstanding > 0 ? formatCurrency(outstanding, deal.currency) : "Paid"}
+          </dd>
+        </div>
+      </dl>
+
+      {/* Collection progress */}
+      <div className="mt-4">
+        <div className="mb-1.5 flex items-center justify-between text-[11.5px]">
+          <span className="text-fg-3">Collected</span>
+          <span className="tabular font-semibold text-fg-2">{progress.toFixed(0)}%</span>
+        </div>
+        <Progress value={progress} tone={progress >= 100 ? "success" : "brand"} />
       </div>
 
       {/* Next action */}
       {deal.nextAction && (
-        <div
-          className="flex items-center gap-2 rounded-xl px-3 py-2"
-          style={{ background: "var(--input-bg)" }}
-        >
-          <ChevronRight className="size-3.5 shrink-0" style={{ color: "var(--brand)" }} />
-          <p className="text-[12px] flex-1 truncate" style={{ color: "var(--text-secondary)" }}>
-            {deal.nextAction}
-          </p>
-          {deal.nextActionDate && (
-            <span className="text-[11px] shrink-0" style={{ color: "var(--text-muted)" }}>
-              {new Date(deal.nextActionDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-            </span>
-          )}
+        <div className="mt-4 flex items-center gap-2.5 rounded-2xl bg-muted px-3.5 py-2.5">
+          <ArrowRightIcon size={14} weight="bold" className="shrink-0 text-brand" />
+          <p className="flex-1 truncate text-[12.5px] text-fg-2">{deal.nextAction}</p>
         </div>
       )}
 
+      <div className="flex-1" />
+
       {(onEdit || onDelete) && (
-        <div className="flex justify-end gap-2 pt-1">
-          {onEdit && (
-            <button
-              type="button"
-              onClick={onEdit}
-              className="btn-ghost inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
-            >
-              <Pencil className="size-3.5" />
-              Edit
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[12px] font-medium"
-              style={{ color: "var(--badge-danger-text)" }}
-            >
-              <Trash2 className="size-3.5" />
-              Remove
-            </button>
-          )}
+        <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
+          <span className="text-[11.5px] text-fg-3">
+            {deal.updatedAt ? `Updated ${formatRelativeDate(deal.updatedAt).toLowerCase()}` : ""}
+          </span>
+          <div className="flex gap-1">
+            {onEdit && (
+              <button type="button" onClick={onEdit} className="icon-btn icon-btn-sm" aria-label={`Edit ${deal.client}`} title="Edit">
+                <PencilSimpleIcon size={17} />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="icon-btn icon-btn-sm icon-btn-danger"
+                aria-label={`Remove ${deal.client}`}
+                title="Remove"
+              >
+                <TrashIcon size={17} />
+              </button>
+            )}
+          </div>
         </div>
       )}
-    </Card>
+    </article>
   );
 }

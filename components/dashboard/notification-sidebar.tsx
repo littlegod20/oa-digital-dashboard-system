@@ -1,18 +1,39 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Clock, TrendingUp, X } from "lucide-react";
+import { useEffect } from "react";
+import type { Icon } from "@phosphor-icons/react";
+import {
+  ArrowDownLeftIcon,
+  ArrowUpRightIcon,
+  ArrowsLeftRightIcon,
+  CalendarCheckIcon,
+  CheckCircleIcon,
+  HourglassMediumIcon,
+  WarningCircleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { CONTACTS, TRANSACTIONS } from "@/lib/mock-data";
-import { formatCurrency, getInitials } from "@/lib/utils";
+import { cn, formatCurrency, formatRelativeDate } from "@/lib/utils";
+import { Avatar } from "@/components/ui/avatar";
 
-const NOTIFICATIONS = [
+type Notification = {
+  id: string;
+  title: string;
+  detail: string;
+  time: string;
+  icon: Icon;
+  tone: "warning" | "info" | "success" | "violet";
+  unread: boolean;
+};
+
+const NOTIFICATIONS: Notification[] = [
   {
     id: "n1",
     title: "BookIt Ghana proposal deadline approaching",
     detail: "Send revised proposal by Friday",
     time: "3 days remaining",
-    icon: AlertCircle,
-    fg: "var(--badge-warning-text)",
-    bg: "var(--badge-warning-bg)",
+    icon: WarningCircleIcon,
+    tone: "warning",
     unread: true,
   },
   {
@@ -20,9 +41,8 @@ const NOTIFICATIONS = [
     title: "Dwaso Farms awaiting contract sign-off",
     detail: "Decision expected end of week",
     time: "Updated 2 days ago",
-    icon: Clock,
-    fg: "var(--badge-info-text)",
-    bg: "var(--badge-info-bg)",
+    icon: HourglassMediumIcon,
+    tone: "info",
     unread: true,
   },
   {
@@ -30,9 +50,8 @@ const NOTIFICATIONS = [
     title: "Farmercy project delivered and signed off",
     detail: "GHS 18,000 fully collected",
     time: "Jul 30",
-    icon: CheckCircle2,
-    fg: "var(--badge-success-text)",
-    bg: "var(--badge-success-bg)",
+    icon: CheckCircleIcon,
+    tone: "success",
     unread: false,
   },
   {
@@ -40,9 +59,8 @@ const NOTIFICATIONS = [
     title: "CommerceEveryday discovery call scheduled",
     detail: "Thursday 2 pm — referred by existing client",
     time: "Tomorrow",
-    icon: TrendingUp,
-    fg: "var(--brand)",
-    bg: "var(--brand-soft)",
+    icon: CalendarCheckIcon,
+    tone: "violet",
     unread: false,
   },
 ];
@@ -56,164 +74,108 @@ type NotificationSidebarProps = {
   onClose: () => void;
 };
 
+/** Floating activity panel that slides over the content from the right. */
 export function NotificationSidebar({ open, onClose }: NotificationSidebarProps) {
-  return (
-    <aside
-      className="hidden shrink-0 flex-col md:flex h-full overflow-hidden"
-      style={{
-        width: open ? "18rem" : "0",
-        borderLeft: open ? "1px solid var(--header-border)" : "none",
-        background: "var(--page-bg)",
-        transition: "width 0.2s ease, border-color 0.2s ease",
-      }}
-      aria-hidden={!open}
-    >
-      <div className="flex h-full w-72 min-h-0 flex-col">
-        <NotificationPanel onClose={onClose} />
-      </div>
-    </aside>
-  );
-}
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
-function NotificationPanel({ onClose }: { onClose: () => void }) {
+  if (!open) return null;
+
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {/* Header */}
-      <div
-        className="flex h-14 shrink-0 items-center justify-between px-5"
-        style={{ borderBottom: "1px solid var(--header-border)" }}
+    <div className="fixed inset-0 z-40">
+      <div className="animate-fade absolute inset-0 bg-[rgba(8,12,21,0.18)]" onClick={onClose} />
+      <aside
+        aria-label="Notifications"
+        className="animate-slide absolute inset-y-2 right-2 flex w-[22rem] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-[26px] bg-solid shadow-pop md:inset-y-3 md:right-3"
       >
-        <h2 className="font-semibold text-[14px]" style={{ color: "var(--text-primary)" }}>
-          Notifications
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-lg transition-colors"
-          style={{ color: "var(--text-muted)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--input-bg)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-          aria-label="Close notifications"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
+        <div className="flex h-[4.5rem] shrink-0 items-center justify-between px-6">
+          <div>
+            <h2 className="font-display text-[18px] font-semibold text-fg">Notifications</h2>
+            <p className="text-[11.5px] text-fg-3">{NOTIF_UNREAD} unread</p>
+          </div>
+          <button type="button" onClick={onClose} className="icon-btn icon-btn-sm" aria-label="Close notifications">
+            <XIcon size={18} />
+          </button>
+        </div>
 
-      {/* Scrollable content */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-7">
-
-        {/* Notifications */}
-        <Section title="Alerts">
-          <ul className="flex flex-col gap-4">
-            {NOTIFICATIONS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.id} className="flex items-start gap-3">
-                  <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                    style={{ background: item.bg, color: item.fg }}
-                  >
-                    <Icon className="size-3.5" strokeWidth={1.75} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="text-[13px] leading-snug"
-                      style={{
-                        color: "var(--text-primary)",
-                        fontWeight: item.unread ? 600 : 400,
-                      }}
-                    >
-                      {item.title}
-                    </p>
-                    {item.detail && (
-                      <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-snug" style={{ color: "var(--text-secondary)" }}>
-                        {item.detail}
+        <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-6 pb-6">
+          <Section title="Alerts">
+            <ul className="space-y-1">
+              {NOTIFICATIONS.map((item) => {
+                const IconCmp = item.icon;
+                return (
+                  <li key={item.id} className="-mx-2 flex items-start gap-3 rounded-2xl p-2 transition-colors hover:bg-muted">
+                    <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", `badge-${item.tone}`)}>
+                      <IconCmp size={18} weight="duotone" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn("text-[13px] leading-snug text-fg", item.unread ? "font-semibold" : "font-medium")}>
+                        {item.title}
                       </p>
-                    )}
-                    <p className="mt-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                      {item.time}
+                      <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-fg-2">{item.detail}</p>
+                      <p className="mt-1 text-[11px] text-fg-3">{item.time}</p>
+                    </div>
+                    {item.unread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-peach" aria-label="Unread" />}
+                  </li>
+                );
+              })}
+            </ul>
+          </Section>
+
+          <Section title="Recent activity">
+            <ul className="space-y-3">
+              {RECENT_TX.map((tx) => {
+                const isIn = tx.type === "income" || tx.type === "payment_received";
+                const isTransfer = tx.type === "transfer";
+                const IconCmp = isIn ? ArrowDownLeftIcon : isTransfer ? ArrowsLeftRightIcon : ArrowUpRightIcon;
+                return (
+                  <li key={tx.id} className="flex items-center gap-3">
+                    <div
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                        isIn ? "badge-success" : isTransfer ? "badge-info" : "badge-danger",
+                      )}
+                    >
+                      <IconCmp size={16} weight="bold" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium text-fg">{tx.description}</p>
+                      <p className="text-[11px] text-fg-3">{formatRelativeDate(tx.date)}</p>
+                    </div>
+                    <p
+                      className={cn(
+                        "tabular shrink-0 whitespace-nowrap text-[12px] font-semibold",
+                        isIn ? "text-success" : isTransfer ? "text-info" : "text-fg",
+                      )}
+                    >
+                      {isIn ? "+" : isTransfer ? "" : "−"}
+                      {formatCurrency(tx.amount, tx.currency)}
                     </p>
+                  </li>
+                );
+              })}
+            </ul>
+          </Section>
+
+          <Section title="Key contacts">
+            <ul className="space-y-3">
+              {CONTACTS.map((contact) => (
+                <li key={contact.id} className="flex items-center gap-3">
+                  <Avatar name={contact.name} size={36} />
+                  <div className="min-w-0">
+                    <p className="truncate text-[13px] font-medium text-fg">{contact.name}</p>
+                    <p className="truncate text-[11px] text-fg-3">{contact.company}</p>
                   </div>
-                  {item.unread && (
-                    <span
-                      className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ background: "var(--brand)" }}
-                      aria-label="Unread"
-                    />
-                  )}
                 </li>
-              );
-            })}
-          </ul>
-        </Section>
-
-        {/* Recent activity (transactions) */}
-        <Section title="Activity">
-          <ul className="flex flex-col gap-4">
-            {RECENT_TX.map((tx) => {
-              const isIn = tx.type === "income" || tx.type === "payment_received";
-              const isTransfer = tx.type === "transfer";
-              const fg = isIn
-                ? "var(--badge-success-text)"
-                : isTransfer
-                ? "var(--brand)"
-                : "var(--badge-danger-text)";
-              const bg = isIn
-                ? "var(--badge-success-bg)"
-                : isTransfer
-                ? "var(--badge-info-bg)"
-                : "var(--badge-danger-bg)";
-              const symbol = isIn ? "+" : isTransfer ? "" : "-";
-              return (
-                <li key={tx.id} className="flex items-start gap-3">
-                  <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[13px] font-bold"
-                    style={{ background: bg, color: fg }}
-                  >
-                    {isIn ? "↓" : isTransfer ? "⇄" : "↑"}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[13px] leading-snug truncate" style={{ color: "var(--text-primary)" }}>
-                      {tx.description}
-                    </p>
-                    <p className="mt-0.5 text-[11px]" style={{ color: "var(--text-muted)" }}>
-                      {tx.date}
-                    </p>
-                  </div>
-                  <p className="text-[12px] font-semibold whitespace-nowrap shrink-0" style={{ color: fg }}>
-                    {symbol}{formatCurrency(tx.amount, tx.currency)}
-                  </p>
-                </li>
-              );
-            })}
-          </ul>
-        </Section>
-
-        {/* Contacts */}
-        <Section title="Contacts">
-          <ul className="flex flex-col gap-3">
-            {CONTACTS.map((contact) => (
-              <li key={contact.id} className="flex items-center gap-3">
-                <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                  style={{ background: "var(--brand-strong)" }}
-                >
-                  {getInitials(contact.name)}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-medium" style={{ color: "var(--text-primary)" }}>
-                    {contact.name}
-                  </p>
-                  <p className="truncate text-[11px]" style={{ color: "var(--text-muted)" }}>
-                    {contact.company}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Section>
-
-      </div>
+              ))}
+            </ul>
+          </Section>
+        </div>
+      </aside>
     </div>
   );
 }
@@ -221,12 +183,7 @@ function NotificationPanel({ onClose }: { onClose: () => void }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3
-        className="mb-3.5 text-[12px] font-semibold uppercase tracking-wider"
-        style={{ color: "var(--text-muted)" }}
-      >
-        {title}
-      </h3>
+      <h3 className="eyebrow mb-3">{title}</h3>
       {children}
     </section>
   );

@@ -1,12 +1,19 @@
 import type { Metadata } from 'next'
-import { Poppins } from 'next/font/google'
+import { Inter, Outfit } from 'next/font/google'
 import './globals.css'
 import { RoleProvider } from '@/lib/role-context'
+import { THEME_INIT_SCRIPT } from '@/lib/theme-script'
 
-const poppins = Poppins({
+const inter = Inter({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  variable: '--font-poppins',
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-outfit',
   display: 'swap',
 })
 
@@ -20,8 +27,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${poppins.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning data-theme="light">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className={`${inter.variable} ${outfit.variable} antialiased`}>
         <RoleProvider>{children}</RoleProvider>
       </body>
     </html>

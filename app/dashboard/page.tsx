@@ -1,17 +1,31 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { BalanceCard } from '@/components/ui/balance-card'
-import { KpiCard } from '@/components/ui/kpi-card'
-import { PipelineCard } from '@/components/ui/pipeline-card'
-import { RevenueChart } from '@/components/charts/revenue-chart'
+import Link from 'next/link'
+import {
+  ArrowRightIcon,
+  ChartLineUpIcon,
+  CoinsIcon,
+  HandCoinsIcon,
+  KanbanIcon,
+  ReceiptIcon,
+  TrendUpIcon,
+} from '@phosphor-icons/react'
+import { PageHeader } from '@/components/ui/page-header'
+import { Card, CardHeader, InkCard } from '@/components/ui/card'
+import { StatStrip, type Stat } from '@/components/ui/stat-strip'
+import { PageSkeleton, Progress } from '@/components/ui/states'
+import { Avatar } from '@/components/ui/avatar'
+import { PhaseBadge } from '@/components/ui/phase-badge'
+import { RevenueChart, RevenueLegend } from '@/components/charts/revenue-chart'
 import { PipelineFunnel } from '@/components/charts/pipeline-funnel'
-import { formatCurrency, formatRelativeDate } from '@/lib/utils'
+import { CashCard, InkMetric, TopPerformers, TransactionRow, type Performer } from '@/components/dashboard/widgets'
+import { formatCurrency } from '@/lib/utils'
 import { useRole } from '@/lib/role-context'
 import type { Deal as LibDeal, MonthlyRevenue, PipelinePhase, Currency } from '@/lib/types'
 
 type Phase = PipelinePhase
-type TxType = 'income' | 'expense' | 'payment_received'
+type TxType = 'income' | 'expense' | 'payment_received' | 'transfer'
 
 interface Deal {
   id: string
@@ -40,8 +54,19 @@ interface Transaction {
   orderId?: string
 }
 
+interface Member {
+  name: string
+  role: string
+  activeDeals: number
+  totalRevenue: string | number
+}
+
 function n(v: string | number): number {
   return Number(v)
+}
+
+function ghsK(v: number) {
+  return `GHS ${(v / 1000).toFixed(0)}K`
 }
 
 function toLibDeal(d: Deal): LibDeal {
@@ -81,20 +106,28 @@ function buildMonthlyRevenue(transactions: Transaction[]): MonthlyRevenue[] {
     .slice(-6)
 }
 
+function greeting() {
+  const h = new Date().getHours()
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
+}
+
 export default function OverviewPage() {
-  const { isManagement, isSales } = useRole()
+  const { user, isManagement } = useRole()
   const [deals, setDeals] = useState<Deal[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [team, setTeam] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([
       fetch('/api/deals').then((r) => r.json()),
       fetch('/api/transactions').then((r) => r.json()),
+      fetch('/api/team').then((r) => (r.ok ? r.json() : [])),
     ])
-      .then(([d, t]) => {
+      .then(([d, t, m]) => {
         setDeals(Array.isArray(d) ? d : [])
         setTransactions(Array.isArray(t) ? t : [])
+        setTeam(Array.isArray(m) ? m : [])
       })
       .finally(() => setLoading(false))
   }, [])
@@ -149,145 +182,271 @@ export default function OverviewPage() {
     [deals]
   )
 
+  const performers: Performer[] = team.map((m) => ({
+    name: m.name,
+    role: m.role,
+    revenue: n(m.totalRevenue),
+    activeDeals: m.activeDeals,
+  }))
+
   const recentTx = transactions.slice(0, 5)
+  const firstName = user?.name?.split(' ')[0] ?? 'there'
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  const header = (
+    <PageHeader
+      eyebrow={today}
+      title={`${greeting()}, ${firstName}`}
+      description={
+        isManagement
+          ? 'Here is how OA Digital is performing today.'
+          : 'Your pipeline and follow-ups at a glance.'
+      }
+      actions={
+        <>
+          <Link href="/dashboard/pipeline" className="btn btn-secondary">
+            <KanbanIcon size={17} />
+            Pipeline
+          </Link>
+          <Link href="/dashboard/finance" className="btn btn-primary">
+            <ReceiptIcon size={17} weight="bold" />
+            Transactions
+          </Link>
+        </>
+      }
+    />
+  )
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-sm" style={{ color: 'var(--text-muted)' }}>
-        Loading dashboard...
+      <div className="space-y-6">
+        {header}
+        <PageSkeleton />
       </div>
     )
   }
 
+  const pipelineStats: Stat[] = [
+    { label: 'Pipeline value', value: ghsK(kpi.pipelineValue), icon: KanbanIcon, hint: `${activeDeals.length} active deals` },
+    { label: 'Expected incoming', value: ghsK(kpi.expectedIncoming), icon: HandCoinsIcon, hint: 'From active deals', trend: 'up' },
+    { label: 'Owed to us', value: ghsK(kpi.owedToUs), icon: CoinsIcon, hint: `${outstandingDeals.length} open balances` },
+  ]
+
+  const financeStats: Stat[] = [
+    { label: 'Revenue', value: ghsK(kpi.revenueGHS), icon: ChartLineUpIcon, hint: 'All GHS income', trend: 'up' },
+    { label: 'Expenses', value: ghsK(kpi.expensesGHS), icon: ReceiptIcon, hint: 'All GHS spend', trend: 'down' },
+    {
+      label: 'Profit',
+      value: ghsK(kpi.profitGHS),
+      icon: TrendUpIcon,
+      hint: kpi.revenueGHS > 0 ? `${((kpi.profitGHS / kpi.revenueGHS) * 100).toFixed(0)}% margin` : '—',
+      trend: kpi.profitGHS >= 0 ? 'up' : 'down',
+    },
+  ]
+
+  const collectedPct = kpi.pipelineValue > 0 ? ((kpi.pipelineValue - kpi.expectedIncoming) / kpi.pipelineValue) * 100 : 0
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {header}
 
-      {/* Management only: balance cards */}
-      {isManagement && (
-        <div className="grid grid-cols-2 gap-3">
-          <BalanceCard currency="GHS" balance={kpi.balanceGHS} label="Cedis Account" subLabel="OA Digital GHS" />
-          <BalanceCard currency="USD" balance={kpi.balanceUSD} label="Dollar Account" subLabel="OA Digital USD" />
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+        {/* Left column */}
+        <div className="animate-rise space-y-5 xl:col-span-8">
+          <StatStrip stats={isManagement ? financeStats : pipelineStats} />
+
+          <Card>
+            <div className="grid gap-6 lg:grid-cols-[1fr_15rem]">
+              <div className="min-w-0">
+                {isManagement ? (
+                  <>
+                    <CardHeader
+                      title="Revenue vs expenses"
+                      description="Last 6 months · GHS & USD combined"
+                      action={<RevenueLegend />}
+                    />
+                    <RevenueChart data={monthlyRevenue} />
+                  </>
+                ) : (
+                  <>
+                    <CardHeader title="Pipeline by phase" description="Deal value in each stage" />
+                    <PipelineFunnel deals={deals.map(toLibDeal)} />
+                  </>
+                )}
+              </div>
+              <TopPerformers people={performers} />
+            </div>
+          </Card>
         </div>
-      )}
 
-      {/* Management only: revenue / expenses / profit */}
-      {isManagement && (
-        <div className="grid grid-cols-3 gap-3">
-          <KpiCard label="Revenue"  value={`GHS ${(kpi.revenueGHS / 1000).toFixed(0)}K`}  delta="Aug MTD" deltaUp={true} />
-          <KpiCard label="Expenses" value={`GHS ${(kpi.expensesGHS / 1000).toFixed(0)}K`} delta="vs last mo" deltaUp={false} />
-          <KpiCard label="Profit"   value={`GHS ${(kpi.profitGHS / 1000).toFixed(0)}K`}   delta={kpi.revenueGHS > 0 ? `${((kpi.profitGHS / kpi.revenueGHS) * 100).toFixed(0)}% margin` : '—'} deltaUp={true} />
+        {/* Right column: one dark feature card */}
+        <div className="animate-rise xl:col-span-4" style={{ animationDelay: '60ms' }}>
+          {isManagement ? (
+            <CashCard
+              className="h-full"
+              balanceGHS={kpi.balanceGHS}
+              balanceUSD={kpi.balanceUSD}
+              footer={
+                <>
+                  <InkMetric label="Pipeline value" value={ghsK(kpi.pipelineValue)} />
+                  <InkMetric label="Expected incoming" value={ghsK(kpi.expectedIncoming)} />
+                  <InkMetric label="Owed to us" value={ghsK(kpi.owedToUs)} tone="warm" />
+                </>
+              }
+            />
+          ) : (
+            <FollowUpCard deals={outstandingDeals} />
+          )}
         </div>
-      )}
-
-      {/* Both roles: pipeline KPIs */}
-      <div className="grid grid-cols-3 gap-3">
-        <KpiCard label="Pipeline"    value={`GHS ${(kpi.pipelineValue / 1000).toFixed(0)}K`} />
-        <KpiCard label="Expected In" value={`GHS ${(kpi.expectedIncoming / 1000).toFixed(0)}K`} delta="incoming" deltaUp={true} />
-        <KpiCard label="Owed to Us"  value={`GHS ${(kpi.owedToUs / 1000).toFixed(0)}K`} />
       </div>
 
-      {/* Sales: outstanding deals for follow-up */}
-      {isSales && outstandingDeals.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display font-semibold text-[14.5px]" style={{ color: 'var(--text-primary)' }}>
-              Outstanding Payments
-            </h2>
-            <span className="text-[12px] font-medium px-2.5 py-0.5 rounded-full" style={{ background: 'var(--badge-warning-bg)', color: 'var(--badge-warning-text)' }}>
-              Follow up
-            </span>
+      {isManagement && (
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <Card className="lg:col-span-8">
+            <CardHeader
+              title="Pipeline by phase"
+              description="Deal value in each stage"
+              action={
+                <Link href="/dashboard/pipeline" className="btn btn-ghost btn-sm">
+                  Open pipeline <ArrowRightIcon size={14} weight="bold" />
+                </Link>
+              }
+            />
+            <PipelineFunnel deals={deals.map(toLibDeal)} />
+          </Card>
+          <Card className="flex flex-col lg:col-span-4">
+            <CardHeader title="Collection health" description="Active GHS deals" />
+            <p className="tabular font-display text-[44px] font-semibold leading-none text-fg">
+              {collectedPct.toFixed(0)}
+              <span className="text-[22px] text-fg-3">%</span>
+            </p>
+            <p className="mt-2 text-[12.5px] text-fg-3">of active pipeline value already collected</p>
+            <div className="mt-6 space-y-4">
+              <HealthRow label="Collected" value={kpi.pipelineValue - kpi.expectedIncoming} total={kpi.pipelineValue} tone="brand" />
+              <HealthRow label="Outstanding" value={kpi.expectedIncoming} total={kpi.pipelineValue} tone="warm" />
+            </div>
+          </Card>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+        {/* Active deals */}
+        <Card flush className="lg:col-span-7">
+          <div className="p-5 pb-0 md:p-6 md:pb-0">
+            <CardHeader
+              title="Active deals"
+              description={`${activeDeals.length} in progress`}
+              action={
+                <Link href="/dashboard/pipeline" className="btn btn-ghost btn-sm">
+                  View all <ArrowRightIcon size={14} weight="bold" />
+                </Link>
+              }
+              className="mb-3"
+            />
           </div>
-          <div
-            className="rounded-2xl divide-y overflow-hidden"
-            style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
-          >
-            {outstandingDeals.map((deal) => {
-              const outstanding = n(deal.value) - n(deal.paid)
+          <ul className="divide-y divide-line">
+            {activeDeals.slice(0, 5).map((deal) => {
+              const pct = n(deal.value) > 0 ? (n(deal.paid) / n(deal.value)) * 100 : 0
               return (
-                <div key={deal.id} className="flex items-center justify-between px-4 py-3.5 gap-3 trow">
-                  <div>
-                    <p className="font-medium text-[13.5px] leading-tight" style={{ color: 'var(--text-primary)' }}>
-                      {deal.client}
-                    </p>
-                    <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                      {deal.title} · {deal.nextAction}
-                    </p>
+                <li key={deal.id} className="trow flex items-center gap-3.5 px-5 py-3.5 md:px-6">
+                  <Avatar name={deal.client} size={40} square />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13.5px] font-semibold text-fg">{deal.client}</p>
+                    <p className="truncate text-[12px] text-fg-3">{deal.title}</p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-semibold text-[13.5px]" style={{ color: 'var(--badge-warning-text)' }}>
-                      {formatCurrency(outstanding, deal.currency)} owed
-                    </p>
-                    <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                      of {formatCurrency(n(deal.value), deal.currency)}
-                    </p>
+                  <div className="hidden w-28 sm:block">
+                    <Progress value={pct} className="h-1.5" />
+                    <p className="mt-1 text-[11px] text-fg-3">{pct.toFixed(0)}% collected</p>
                   </div>
-                </div>
+                  <div className="hidden md:block">
+                    <PhaseBadge phase={deal.phase} />
+                  </div>
+                  <p className="tabular w-28 shrink-0 text-right text-[13px] font-semibold text-fg">
+                    {formatCurrency(n(deal.value), deal.currency)}
+                  </p>
+                </li>
               )
             })}
-          </div>
-        </section>
-      )}
+            {activeDeals.length === 0 && (
+              <li className="px-6 py-10 text-center text-[13px] text-fg-3">No active deals right now.</li>
+            )}
+          </ul>
+        </Card>
 
-      {/* Charts */}
-      <div className={`grid gap-4 ${isManagement ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
-        {isManagement && <RevenueChart data={monthlyRevenue} />}
-        <PipelineFunnel deals={deals.map(toLibDeal)} />
+        {/* Recent transactions */}
+        <Card flush className="lg:col-span-5">
+          <div className="p-5 pb-0 md:p-6 md:pb-0">
+            <CardHeader
+              title="Recent transactions"
+              description="Latest money in and out"
+              action={
+                <Link href="/dashboard/finance" className="btn btn-ghost btn-sm">
+                  View all <ArrowRightIcon size={14} weight="bold" />
+                </Link>
+              }
+              className="mb-3"
+            />
+          </div>
+          <div className="divide-y divide-line">
+            {recentTx.map((tx) => (
+              <TransactionRow key={tx.id} tx={tx} compact />
+            ))}
+            {recentTx.length === 0 && (
+              <p className="px-6 py-10 text-center text-[13px] text-fg-3">No transactions yet.</p>
+            )}
+          </div>
+        </Card>
       </div>
 
-      {/* Active deals */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-display font-semibold text-[14.5px]" style={{ color: 'var(--text-primary)' }}>
-            Active Deals
-          </h2>
-          <a href="/dashboard/pipeline" className="text-[12.5px] font-medium" style={{ color: 'var(--brand)' }}>
-            View all →
-          </a>
-        </div>
-        <div className="space-y-3">
-          {activeDeals.slice(0, 3).map((deal) => (
-            <PipelineCard key={deal.id} deal={toLibDeal(deal)} />
-          ))}
-        </div>
-      </section>
-
-      {/* Recent transactions */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-display font-semibold text-[14.5px]" style={{ color: 'var(--text-primary)' }}>
-            Recent Transactions
-          </h2>
-          <a href="/dashboard/finance" className="text-[12.5px] font-medium" style={{ color: 'var(--brand)' }}>
-            View all →
-          </a>
-        </div>
-        <div
-          className="rounded-2xl divide-y overflow-hidden"
-          style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
-        >
-          {recentTx.map((tx) => {
-            const isIn = tx.type === 'income' || tx.type === 'payment_received'
-            return (
-              <div key={tx.id} className="flex items-center justify-between px-4 py-3.5 gap-3 trow">
-                <div>
-                  <p className="font-medium text-[13.5px] leading-tight" style={{ color: 'var(--text-primary)' }}>
-                    {tx.description}
-                  </p>
-                  <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    {tx.category} · {formatRelativeDate(tx.date)}
-                  </p>
-                </div>
-                <p
-                  className="font-semibold text-[13.5px] whitespace-nowrap"
-                  style={{ color: isIn ? 'var(--badge-success-text)' : 'var(--badge-danger-text)' }}
-                >
-                  {isIn ? '+' : '-'}{formatCurrency(n(tx.amount), tx.currency)}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-      </section>
     </div>
+  )
+}
+
+function HealthRow({ label, value, total, tone }: { label: string; value: number; total: number; tone: 'brand' | 'warm' }) {
+  const pct = total > 0 ? (value / total) * 100 : 0
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between text-[12.5px]">
+        <span className="font-medium text-fg-2">{label}</span>
+        <span className="tabular font-semibold text-fg">{ghsK(value)}</span>
+      </div>
+      <Progress value={pct} tone={tone} />
+    </div>
+  )
+}
+
+function FollowUpCard({ deals }: { deals: Deal[] }) {
+  return (
+    <InkCard className="flex h-full flex-col">
+      <div className="relative z-10 flex items-center justify-between">
+        <h2 className="font-display text-[18px] font-semibold">Follow-ups</h2>
+        <span className="rounded-full bg-ink-chip px-2.5 py-1 text-[11px] font-medium text-ink-muted">
+          {deals.length} open
+        </span>
+      </div>
+      <p className="relative z-10 mt-1 text-[12.5px] text-ink-muted">Clients with outstanding balances</p>
+      <ul className="relative z-10 mt-5 space-y-1">
+        {deals.slice(0, 5).map((deal) => {
+          const owed = n(deal.value) - n(deal.paid)
+          return (
+            <li key={deal.id} className="flex items-start gap-3 border-t border-ink-line py-3.5 first:border-t-0">
+              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-peach" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13.5px] font-semibold">{deal.client}</p>
+                <p className="truncate text-[11.5px] text-ink-muted">{deal.nextAction || deal.title}</p>
+              </div>
+              <p className="tabular shrink-0 text-[13px] font-semibold">{formatCurrency(owed, deal.currency)}</p>
+            </li>
+          )
+        })}
+        {deals.length === 0 && <li className="py-8 text-center text-[13px] text-ink-muted">All balances settled</li>}
+      </ul>
+      <Link
+        href="/dashboard/finance"
+        className="relative z-10 mt-auto inline-flex items-center gap-2 pt-4 text-[13px] font-semibold text-white/90 hover:text-white"
+      >
+        Open finance <ArrowRightIcon size={14} weight="bold" />
+      </Link>
+    </InkCard>
   )
 }

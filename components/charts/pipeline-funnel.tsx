@@ -1,62 +1,58 @@
 'use client'
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import type { Deal, PipelinePhase } from '@/lib/types'
 import { PHASE_META } from '@/lib/types'
 import { formatCompact } from '@/lib/utils'
-import { Card, CardTitle } from '@/components/ui/card'
 
 interface PipelineFunnelProps { deals: Deal[] }
 
 const PHASE_ORDER: PipelinePhase[] = ['lead', 'proposal', 'await', 'meet', 'action', 'progress', 'done']
 
+/** Pipeline value per phase as labelled horizontal bars. */
 export function PipelineFunnel({ deals }: PipelineFunnelProps) {
-  const data = PHASE_ORDER.map((phase) => {
+  const rows = PHASE_ORDER.map((phase) => {
     const phaseDeals = deals.filter((d) => d.phase === phase)
-    const totalValue = phaseDeals.reduce((sum, d) => sum + d.value, 0)
     return {
       phase,
       label: PHASE_META[phase].label,
-      value: totalValue,
+      value: phaseDeals.reduce((sum, d) => sum + d.value, 0),
       count: phaseDeals.length,
       color: PHASE_META[phase].color,
     }
-  }).filter((d) => d.count > 0)
+  }).filter((r) => r.count > 0)
+
+  const max = Math.max(...rows.map((r) => r.value), 1)
+
+  if (rows.length === 0) {
+    return <p className="py-10 text-center text-[13px] text-fg-3">No deals in the pipeline yet.</p>
+  }
 
   return (
-    <Card className="p-5">
-      <CardTitle className="mb-4 text-[14px]">Pipeline by Phase</CardTitle>
-      <ResponsiveContainer width="100%" height={200}>
-        <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--divider)" vertical={false} />
-          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-muted)", fontFamily: "DM Sans, sans-serif" }} axisLine={false} tickLine={false} />
-          <YAxis tickFormatter={formatCompact} tick={{ fontSize: 10, fill: "var(--text-muted)", fontFamily: "DM Sans, sans-serif" }} axisLine={false} tickLine={false} />
-          <Tooltip
-            formatter={(v, _name, item) => {
-              const payload = item.payload as { label?: string; count?: number } | undefined
-              const count = payload?.count ?? 0
-              const label = payload?.label ?? ''
-              return [
-                `GHS ${formatCompact(Number(v))} (${count} deal${count !== 1 ? 's' : ''})`,
-                label,
-              ]
-            }}
-            contentStyle={{
-              background: "var(--card-bg)",
-              border: "1px solid var(--divider)",
-              borderRadius: 10,
-              fontSize: 12,
-              fontFamily: "DM Sans, sans-serif",
-              color: "var(--text-primary)",
-            }}
-          />
-          <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-            {data.map((entry) => (
-              <Cell key={entry.phase} fill={entry.color} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </Card>
+    <ul className="space-y-4">
+      {rows.map((r) => (
+        <li key={r.phase}>
+          <div className="mb-1.5 flex items-center justify-between gap-3 text-[12.5px]">
+            <span className="flex min-w-0 items-center gap-2 font-medium text-fg">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: r.color === '#ffffff' ? 'var(--oa-navy)' : r.color }} />
+              <span className="truncate">{r.label}</span>
+              <span className="text-[11px] font-normal text-fg-3">
+                {r.count} deal{r.count !== 1 ? 's' : ''}
+              </span>
+            </span>
+            <span className="tabular shrink-0 font-semibold text-fg">{formatCompact(r.value)}</span>
+          </div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-track">
+            <div
+              className="h-full rounded-full transition-[width] duration-700"
+              style={{
+                width: `${Math.max((r.value / max) * 100, 4)}%`,
+                background: 'linear-gradient(90deg, #1D5FD1, #22B8F0)',
+                opacity: 0.45 + 0.55 * (r.value / max),
+              }}
+            />
+          </div>
+        </li>
+      ))}
+    </ul>
   )
 }

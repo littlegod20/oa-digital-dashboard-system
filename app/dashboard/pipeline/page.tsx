@@ -1,7 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { KanbanIcon, PlusIcon } from '@phosphor-icons/react'
 import { PipelineCard } from '@/components/ui/pipeline-card'
+import { PageHeader } from '@/components/ui/page-header'
+import { Segmented } from '@/components/ui/segmented'
+import { EmptyState, Skeleton } from '@/components/ui/states'
 import { PHASE_META } from '@/lib/types'
 import type { Currency, PipelinePhase } from '@/lib/types'
 import { AddDealModal, type DealDraft } from '@/components/ui/add-deal-modal'
@@ -27,6 +31,10 @@ function toCardDeal(deal: Deal) {
     createdAt: deal.createdAt ?? '',
     updatedAt: deal.updatedAt ?? '',
   }
+}
+
+function ghsK(v: number) {
+  return `GHS ${(v / 1000).toFixed(0)}K`
 }
 
 export default function PipelinePage() {
@@ -91,61 +99,97 @@ export default function PipelinePage() {
   const filtered = filter === 'all' ? deals : deals.filter((d) => d.phase === filter)
   const totalValue = filtered.reduce((sum, d) => sum + n(d.value), 0)
   const totalPaid  = filtered.reduce((sum, d) => sum + n(d.paid), 0)
+  const outstanding = totalValue - totalPaid
+  const collectedPct = totalValue > 0 ? (totalPaid / totalValue) * 100 : 0
+
+  const phaseOptions = ALL_PHASES
+    .map((phase) => ({
+      value: phase,
+      label: phase === 'all' ? 'All deals' : PHASE_META[phase].label,
+      count: phase === 'all' ? deals.length : deals.filter((d) => d.phase === phase).length,
+    }))
+    .filter((o) => o.value === 'all' || o.count > 0)
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display font-bold text-[20px] leading-tight" style={{ color: "var(--text-primary)" }}>Pipeline</h1>
-          <p className="text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-            {filtered.length} deal{filtered.length !== 1 ? 's' : ''} · GHS {(totalValue / 1000).toFixed(0)}K total
-          </p>
-        </div>
-        <button onClick={openAdd} className="btn-primary text-[13px] font-semibold px-4 py-2 rounded-xl">
-          + Add Deal
-        </button>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Sales"
+        title="Pipeline"
+        description={`${filtered.length} deal${filtered.length !== 1 ? 's' : ''} · ${ghsK(totalValue)} total value`}
+        actions={
+          <button onClick={openAdd} className="btn btn-primary">
+            <PlusIcon size={16} weight="bold" />
+            New deal
+          </button>
+        }
+      />
 
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        {ALL_PHASES.map((phase) => {
-          const label = phase === 'all' ? 'All' : PHASE_META[phase as PipelinePhase].label
-          const count = phase === 'all' ? deals.length : deals.filter((d) => d.phase === phase).length
-          if (count === 0 && phase !== 'all') return null
-          return (
-            <button
-              key={phase}
-              onClick={() => setFilter(phase)}
-              className="whitespace-nowrap text-[12.5px] font-medium px-3.5 py-1.5 rounded-full border shrink-0 transition-colors"
-              style={{
-                background: filter === phase ? "var(--brand-strong)" : "var(--card-bg)",
-                color: filter === phase ? "var(--brand-on)" : "var(--text-secondary)",
-                borderColor: filter === phase ? "var(--brand-strong)" : "var(--divider)",
-              }}
+      {/* Value split — proportional pills */}
+      {!loading && filtered.length > 0 && (
+        <div className="card p-5 md:p-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[12px] font-medium text-fg-3">Total value</p>
+              <p className="tabular font-display text-[30px] font-semibold leading-tight text-fg">{ghsK(totalValue)}</p>
+            </div>
+            <div className="flex gap-8 text-[12px]">
+              <div>
+                <p className="flex items-center gap-1.5 text-fg-3"><span className="h-2 w-2 rounded-full bg-brand" />Collected</p>
+                <p className="tabular mt-0.5 text-[15px] font-semibold text-fg">{ghsK(totalPaid)}</p>
+              </div>
+              <div>
+                <p className="flex items-center gap-1.5 text-fg-3"><span className="h-2 w-2 rounded-full bg-fg-3/40" />Outstanding</p>
+                <p className="tabular mt-0.5 text-[15px] font-semibold text-fg">{ghsK(outstanding)}</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-5 flex h-11 gap-1.5">
+            <div
+              className="flex min-w-[3.5rem] items-center rounded-full bg-[#0E1525] px-4 text-[12px] font-semibold text-white dark:bg-white dark:text-[#0E1525]"
             >
-              {label} {count > 0 && <span style={{ opacity: 0.7 }}>({count})</span>}
-            </button>
-          )
-        })}
-      </div>
-
-      {filtered.length > 0 && (
-        <div className="rounded-xl px-4 py-3 flex items-center gap-6 text-[12.5px]"
-          style={{ background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
-          <div><span style={{ color: "var(--text-muted)" }}>Total value </span>
-            <span className="font-semibold" style={{ color: "var(--text-primary)" }}>GHS {(totalValue / 1000).toFixed(0)}K</span></div>
-          <div><span style={{ color: "var(--text-muted)" }}>Collected </span>
-            <span className="font-semibold" style={{ color: "var(--badge-success-text)" }}>GHS {(totalPaid / 1000).toFixed(0)}K</span></div>
-          <div><span style={{ color: "var(--text-muted)" }}>Outstanding </span>
-            <span className="font-semibold" style={{ color: "var(--badge-warning-text)" }}>GHS {((totalValue - totalPaid) / 1000).toFixed(0)}K</span></div>
+              {filtered.length}
+            </div>
+            {collectedPct > 0 && (
+              <div
+                className="flex min-w-[4rem] items-center rounded-full px-4 text-[12px] font-semibold text-white"
+                style={{ width: `${collectedPct}%`, background: 'var(--brand-gradient)' }}
+              >
+                {collectedPct.toFixed(0)}%
+              </div>
+            )}
+            {collectedPct < 100 && (
+              <div
+                className="hatch flex min-w-[4rem] flex-1 items-center rounded-full px-4 text-[12px] font-semibold text-fg-2"
+              >
+                {(100 - collectedPct).toFixed(0)}%
+              </div>
+            )}
+          </div>
         </div>
       )}
 
+      <Segmented label="Filter by phase" options={phaseOptions} value={filter} onChange={setFilter} />
+
       {loading ? (
-        <div className="py-16 text-center text-[13.5px]" style={{ color: "var(--text-muted)" }}>Loading deals...</div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-72 rounded-[22px]" />)}
+        </div>
       ) : filtered.length === 0 ? (
-        <div className="py-16 text-center text-[13.5px]" style={{ color: "var(--text-muted)" }}>No deals in this phase.</div>
+        <div className="card">
+          <EmptyState
+            icon={KanbanIcon}
+            title={filter === 'all' ? 'No deals yet' : 'No deals in this phase'}
+            description={filter === 'all' ? 'Add your first deal to start tracking the pipeline.' : 'Try another phase or add a new deal.'}
+            action={
+              <button onClick={openAdd} className="btn btn-primary">
+                <PlusIcon size={16} weight="bold" />
+                New deal
+              </button>
+            }
+          />
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
           {filtered.map((deal) => (
             <PipelineCard
               key={deal.id}
@@ -180,7 +224,7 @@ export default function PipelinePage() {
         open={Boolean(removing)}
         title="Remove deal?"
         message={removing ? `This will permanently remove “${removing.client} — ${removing.title}” from the pipeline.` : ''}
-        confirmLabel="Remove"
+        confirmLabel="Remove deal"
         onClose={() => setRemoving(null)}
         onConfirm={handleRemove}
       />

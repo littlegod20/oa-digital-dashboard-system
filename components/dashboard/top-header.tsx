@@ -1,158 +1,177 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Sun, Moon, Bell } from "lucide-react";
-import { useState } from "react";
+import {
+  BellIcon,
+  CaretDownIcon,
+  CaretRightIcon,
+  GearSixIcon,
+  ListIcon,
+  MagnifyingGlassIcon,
+  MoonIcon,
+  SignOutIcon,
+  SunIcon,
+} from "@phosphor-icons/react";
+import { useRole } from "@/lib/role-context";
+import { useIsMac, useTheme } from "@/lib/theme";
+import { Avatar } from "@/components/ui/avatar";
 import { NOTIF_UNREAD } from "@/components/dashboard/notification-sidebar";
-
-function buildBreadcrumb(pathname: string): string[] {
-  const parts = pathname
-    .replace(/^\/dashboard\/?/, "")
-    .split("/")
-    .filter(Boolean);
-  if (parts.length === 0) return ["Overview"];
-  return [
-    "Overview",
-    ...parts.map((p) =>
-      p.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-    ),
-  ];
-}
+import { ALL_NAV_ITEMS, isActivePath } from "./nav";
 
 interface TopHeaderProps {
-  onOpenNav?: () => void;
-  onBellClick?: () => void;
-  notifOpen?: boolean;
+  onOpenNav: () => void;
+  onOpenSearch: () => void;
+  onBellClick: () => void;
+  onSignOut: () => void;
+  notifOpen: boolean;
 }
 
-export function TopHeader({ onOpenNav, onBellClick, notifOpen }: TopHeaderProps) {
+export function TopHeader({ onOpenNav, onOpenSearch, onBellClick, onSignOut, notifOpen }: TopHeaderProps) {
   const pathname = usePathname();
-  const crumbs = buildBreadcrumb(pathname);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-
-  function toggleTheme() {
-    const next = theme === "light" ? "dark" : "light";
-    setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
-  }
+  const current =
+    ALL_NAV_ITEMS.filter((i) => isActivePath(pathname, i.href)).sort((a, b) => b.href.length - a.href.length)[0] ??
+    ALL_NAV_ITEMS[0];
+  const { resolved, toggle } = useTheme();
+  const isMac = useIsMac();
 
   return (
-    <header
-      className="flex h-14 shrink-0 items-center justify-between gap-2 px-4 md:gap-4 md:px-6"
-      style={{
-        background: "var(--header-bg)",
-        borderBottom: "1px solid var(--header-border)",
-        transition: "background-color 0.2s ease",
-      }}
-    >
-      {/* Left: mobile toggle + breadcrumb */}
-      <div className="flex min-w-0 items-center gap-2">
-        {onOpenNav && (
-          <button
-            type="button"
-            onClick={onOpenNav}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl md:hidden"
-            style={{ background: "var(--input-bg)", color: "var(--text-secondary)" }}
-            aria-label="Open navigation"
-          >
-            <Menu className="size-4" />
-          </button>
-        )}
-
-        <nav className="hidden min-w-0 items-center gap-1.5 text-sm md:flex">
-          {crumbs.map((crumb, i) => (
-            <span key={i} className="flex min-w-0 items-center gap-1.5">
-              {i > 0 && (
-                <span style={{ color: "var(--text-muted)" }}>/</span>
-              )}
-              <span
-                className="truncate"
-                style={{
-                  color: i === crumbs.length - 1 ? "var(--text-primary)" : "var(--text-secondary)",
-                  fontWeight: i === crumbs.length - 1 ? 500 : 400,
-                }}
-              >
-                {crumb}
-              </span>
-            </span>
-          ))}
+    <header className="flex h-16 shrink-0 items-center justify-between gap-3 px-1 md:h-[4.5rem]">
+      {/* Left: mobile menu + breadcrumb */}
+      <div className="flex min-w-0 items-center gap-3">
+        <button type="button" onClick={onOpenNav} className="icon-btn md:hidden" aria-label="Open navigation">
+          <ListIcon size={19} />
+        </button>
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[13px]">
+          <span className="hidden text-fg-3 sm:inline">OA Digital</span>
+          <CaretRightIcon size={12} className="hidden text-fg-3 sm:inline" />
+          <span className="truncate font-semibold text-fg">{current.label}</span>
         </nav>
       </div>
 
-      {/* Right: search + icon controls */}
-      <div className="flex shrink-0 items-center gap-1.5">
-        {/* Search */}
-        <div className="relative hidden sm:block">
-          <svg
-            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2"
-            width="13" height="13" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{ color: "var(--text-muted)" }}
-          >
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="search"
-            placeholder="Search..."
-            className="h-8 w-44 rounded-xl pl-8 pr-3 text-[12.5px] outline-none focus:w-56 transition-all"
-            style={{
-              background: "var(--input-bg)",
-              color: "var(--text-primary)",
-              border: "1px solid transparent",
-            }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--brand-ring)")}
-            onBlur={(e) => (e.currentTarget.style.borderColor = "transparent")}
-          />
-          <kbd
-            className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 hidden text-[10px] rounded px-1 sm:inline-flex"
-            style={{ background: "var(--divider)", color: "var(--text-muted)" }}
-          >
-            ⌘/
-          </kbd>
-        </div>
+      {/* Right: search + controls */}
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={onOpenSearch}
+          className="icon-btn !w-auto gap-2.5 !px-3.5 text-[12.5px] text-fg-3 sm:!pr-2 lg:min-w-[15rem] lg:!justify-start"
+          aria-label="Search"
+        >
+          <MagnifyingGlassIcon size={17} className="text-fg-2" />
+          <span className="hidden lg:inline">Search or jump to…</span>
+          <span className="ml-auto hidden items-center gap-1 sm:flex">
+            <kbd className="kbd">{isMac ? "⌘" : "Ctrl"}</kbd>
+            <kbd className="kbd">K</kbd>
+          </span>
+        </button>
 
-        {/* Bell with unread badge */}
         <button
           type="button"
           onClick={onBellClick}
-          className="relative flex h-8 w-8 items-center justify-center rounded-xl transition-colors"
-          style={{
-            color: notifOpen ? "var(--brand)" : "var(--text-secondary)",
-            background: notifOpen ? "var(--brand-soft)" : "transparent",
-          }}
-          onMouseEnter={(e) => {
-            if (!notifOpen) (e.currentTarget as HTMLElement).style.background = "var(--input-bg)";
-          }}
-          onMouseLeave={(e) => {
-            if (!notifOpen) (e.currentTarget as HTMLElement).style.background = "transparent";
-          }}
-          aria-label="Notifications"
+          className="icon-btn"
+          aria-label={`Notifications${NOTIF_UNREAD ? `, ${NOTIF_UNREAD} unread` : ""}`}
           aria-pressed={notifOpen}
         >
-          <Bell className="size-4" />
+          <BellIcon size={19} weight={notifOpen ? "fill" : "regular"} />
           {NOTIF_UNREAD > 0 && (
-            <span
-              className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] font-bold text-white"
-              style={{ background: "var(--badge-danger-text)" }}
-            >
-              {NOTIF_UNREAD}
-            </span>
+            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-peach ring-2 ring-[var(--card-solid)]" />
           )}
         </button>
 
-        {/* Theme toggle */}
         <button
           type="button"
-          onClick={toggleTheme}
-          className="flex h-8 w-8 items-center justify-center rounded-xl transition-colors"
-          style={{ color: "var(--text-secondary)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--input-bg)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-          aria-label="Toggle theme"
+          onClick={toggle}
+          className="icon-btn hidden sm:inline-flex"
+          aria-label={resolved === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
-          {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
+          {resolved === "dark" ? <SunIcon size={19} /> : <MoonIcon size={19} />}
         </button>
+
+        <UserMenu onSignOut={onSignOut} />
       </div>
     </header>
+  );
+}
+
+function UserMenu({ onSignOut }: { onSignOut: () => void }) {
+  const { user } = useRole();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const name = user?.name ?? "User";
+  const roleLabel = user?.role === "management" ? "Management" : user?.role === "sales" ? "Sales" : "";
+
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="icon-btn !h-11 !w-auto gap-2.5 !pl-1.5 !pr-3"
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Avatar name={name} size={32} />
+        <span className="hidden text-left leading-tight md:block">
+          <span className="block max-w-[9rem] truncate text-[12.5px] font-semibold text-fg">{name}</span>
+          <span className="block text-[11px] text-fg-3">{roleLabel}</span>
+        </span>
+        <CaretDownIcon size={14} className={`text-fg-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="animate-pop absolute right-0 top-[calc(100%+8px)] z-50 w-64 overflow-hidden rounded-[20px] bg-solid p-1.5 shadow-pop"
+        >
+          <div className="flex items-center gap-3 rounded-2xl bg-muted p-3">
+            <Avatar name={name} size={38} />
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-semibold text-fg">{name}</p>
+              <p className="truncate text-[11.5px] text-fg-3">{user?.email}</p>
+            </div>
+          </div>
+          <div className="px-3 pb-1 pt-2.5">
+            <span className={user?.role === "management" ? "badge badge-info" : "badge badge-success"}>{roleLabel}</span>
+          </div>
+          <Link
+            href="/dashboard/settings"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="mt-1 flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] text-fg transition-colors hover:bg-muted"
+          >
+            <GearSixIcon size={17} className="text-fg-3" />
+            Settings
+          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              onSignOut();
+            }}
+            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] text-danger transition-colors hover:bg-danger-soft"
+          >
+            <SignOutIcon size={17} />
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

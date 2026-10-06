@@ -1,28 +1,43 @@
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-export function Card({ className, style, ...props }: HTMLAttributes<HTMLDivElement>) {
+/** Frosted card. `flush` drops the padding for edge-to-edge lists and tables. */
+export function Card({ className, flush, ...props }: HTMLAttributes<HTMLDivElement> & { flush?: boolean }) {
+  return <div className={cn("card", !flush && "p-5 md:p-6", className)} {...props} />;
+}
+
+/** Dark feature card — use at most one per page for emphasis. */
+export function InkCard({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("ink p-5 md:p-6", className)} {...props} />;
+}
+
+export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <div
-      className={cn("rounded-2xl p-6", className)}
-      style={{
-        background: "var(--card-bg)",
-        border: "1px solid var(--card-border)",
-        boxShadow: "var(--card-shadow)",
-        transition: "background-color 0.2s ease, border-color 0.2s ease",
-        ...style,
-      }}
+    <h2
+      className={cn("font-display text-[17px] font-semibold leading-tight text-fg", className)}
       {...props}
     />
   );
 }
 
-export function CardTitle({ className, style, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+export function CardHeader({
+  title,
+  description,
+  action,
+  className,
+}: {
+  title: ReactNode;
+  description?: ReactNode;
+  action?: ReactNode;
+  className?: string;
+}) {
   return (
-    <h2
-      className={cn("text-sm font-semibold", className)}
-      style={{ color: "var(--text-primary)", ...style }}
-      {...props}
-    />
+    <div className={cn("mb-5 flex flex-wrap items-start justify-between gap-3", className)}>
+      <div className="min-w-0">
+        <CardTitle>{title}</CardTitle>
+        {description && <p className="mt-1 text-[12.5px] text-fg-3">{description}</p>}
+      </div>
+      {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+    </div>
   );
 }
