@@ -1,37 +1,30 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useCallback, useContext, type ReactNode } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { FunctionReturnType } from "convex/server";
+import type { Permission } from "@/convex/permissions";
 import { authClient } from "./auth-client";
 
-export type Role = "management" | "sales";
-
-export interface UserProfile {
-  email: string;
-  role: Role;
-  name: string;
-  initials: string;
-}
+export type Viewer = NonNullable<FunctionReturnType<typeof api.users.me>>;
 
 interface RoleContextValue {
-  user: UserProfile | null;
-  /** True once we know whether someone is signed in (and have their profile if so). */
+  user: Viewer | null;
+  /** True once we know whether someone is signed in (and have their record if so). */
   hydrated: boolean;
-  /** Signed in with Better Auth, even if no app profile exists yet. */
+  /** Signed in with Better Auth, even if no active employee record is linked. */
   isAuthenticated: boolean;
+  can: (permission: Permission) => boolean;
   logout: () => Promise<void>;
-  isManagement: boolean;
-  isSales: boolean;
 }
 
 const RoleContext = createContext<RoleContextValue>({
   user: null,
   hydrated: false,
   isAuthenticated: false,
+  can: () => false,
   logout: async () => {},
-  isManagement: false,
-  isSales: false,
 });
 
 export function RoleProvider({ children }: { children: ReactNode }) {
@@ -40,24 +33,14 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   const user = isAuthenticated ? (me ?? null) : null;
   const hydrated = !isLoading && (!isAuthenticated || me !== undefined);
+  const can = useCallback((p: Permission) => !!user?.permissions.includes(p), [user]);
 
   async function logout() {
     await authClient.signOut();
   }
 
   return (
-    <RoleContext.Provider
-      value={{
-        user,
-        hydrated,
-        isAuthenticated,
-        logout,
-        isManagement: user?.role === "management",
-        isSales: user?.role === "sales",
-      }}
-    >
-      {children}
-    </RoleContext.Provider>
+    <RoleContext.Provider value={{ user, hydrated, isAuthenticated, can, logout }}>{children}</RoleContext.Provider>
   );
 }
 

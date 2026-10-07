@@ -24,6 +24,7 @@ export interface Deal {
   currency: Currency
   phase: PipelinePhase
   assignee: string
+  ownerId?: string | null
   paid: number
   nextAction: string
   nextActionDate?: string

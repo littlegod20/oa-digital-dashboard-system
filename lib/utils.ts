@@ -57,3 +57,11 @@ export function getInitials(name: string): string {
     .toUpperCase()
     .slice(0, 2)
 }
+
+/** A user-facing message from a Convex error (ConvexError carries its message in `data`). */
+export function errorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+  if (error && typeof error === 'object' && 'data' in error && typeof (error as { data: unknown }).data === 'string') {
+    return (error as { data: string }).data
+  }
+  return fallback
+}

@@ -1,89 +1,91 @@
-import { ConvexError, v } from "convex/values";
-import { internalAction, internalMutation, query, type MutationCtx } from "./_generated/server";
-import { components, internal } from "./_generated/api";
-import { getViewer, initialsFor } from "./lib";
-import { hashPassword } from "./password";
-import { role } from "./schema";
+import { query, type MutationCtx } from "./_generated/server";
+import { components } from "./_generated/api";
+import { getViewer } from "./lib";
+import { ACCESS_ROLE_META, can, type Permission } from "./permissions";
 
-/** The signed-in user's profile, or null when signed out. */
+const ALL_PERMISSIONS: Permission[] = [
+  "finance.view",
+  "pipeline.view",
+  "people.manage",
+  "people.setAccess",
+  "hr.manage",
+  "announcements.send",
+  "projects.manageAll",
+  "reports.view",
+];
+
+/** The signed-in person, with what they're allowed to do. Null when signed out or unlinked. */
 export const me = query({
   args: {},
   handler: async (ctx) => {
     const viewer = await getViewer(ctx);
     if (!viewer) return null;
+    const department = viewer.departmentId ? await ctx.db.get(viewer.departmentId) : null;
+    const lineManager = viewer.lineManagerId ? await ctx.db.get(viewer.lineManagerId) : null;
     return {
-      email: viewer.email,
+      employeeId: viewer._id,
       name: viewer.name,
-      role: viewer.role,
-      initials: viewer.initials,
+      email: viewer.email,
+      jobTitle: viewer.jobTitle,
+      department: department?.name ?? null,
+      lineManager: lineManager ? { id: lineManager._id, name: lineManager.name } : null,
+      accessRole: viewer.accessRole,
+      accessLabel: ACCESS_ROLE_META[viewer.accessRole].label,
+      permissions: ALL_PERMISSIONS.filter((p) => can(viewer.accessRole, p)),
     };
   },
 });
 
-/**
- * Creates a sign-in account. There is no public sign-up, so run this from the CLI:
- *   npx convex run users:createUser '{"email":"…","password":"…","name":"…","role":"sales"}'
- */
-export const createUser = internalAction({
-  args: { email: v.string(), password: v.string(), name: v.string(), role },
-  // Explicit return type breaks the circular inference through `internal.users`.
-  handler: async (ctx, args): Promise<string> => {
-    if (args.password.length < 8) throw new ConvexError("Password must be at least 8 characters");
-    const passwordHash = await hashPassword(args.password);
-    return await ctx.runMutation(internal.users.insertCredentialUser, {
-      email: args.email,
-      name: args.name,
-      role: args.role,
-      passwordHash,
-    });
-  },
-});
+type AuthUser = { _id: string; email: string };
 
-export const insertCredentialUser = internalMutation({
-  args: { email: v.string(), name: v.string(), role, passwordHash: v.string() },
-  handler: async (ctx, args) => insertCredentialUserImpl(ctx, args),
-});
+async function findAuthUserByEmail(ctx: MutationCtx, email: string) {
+  return (await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "user",
+    where: [{ field: "email", value: email }],
+  })) as AuthUser | null;
+}
 
 /**
- * Writes a Better Auth user + email/password account and the app profile.
- * Idempotent per email: re-running for an existing email only updates the profile.
+ * Makes sure a Better Auth user exists for `email` with an email/password account whose
+ * password hash is `passwordHash`. Returns the auth user id.
  */
-async function insertCredentialUserImpl(
+export async function upsertCredentialUser(
   ctx: MutationCtx,
-  args: { email: string; name: string; role: "management" | "sales"; passwordHash: string },
+  args: { email: string; name: string; passwordHash: string },
 ) {
   const email = args.email.trim().toLowerCase();
   const now = Date.now();
 
-  const existing = (await ctx.runQuery(components.betterAuth.adapter.findOne, {
-    model: "user",
-    where: [{ field: "email", value: email }],
-  })) as { _id: string } | null;
-
-  let userId: string;
-  if (existing) {
-    userId = existing._id;
-  } else {
-    const user = (await ctx.runMutation(components.betterAuth.adapter.create, {
+  let user = await findAuthUserByEmail(ctx, email);
+  if (!user) {
+    user = (await ctx.runMutation(components.betterAuth.adapter.create, {
       input: {
         model: "user",
-        data: {
-          name: args.name,
-          email,
-          emailVerified: true,
-          createdAt: now,
-          updatedAt: now,
-        },
+        data: { name: args.name, email, emailVerified: true, createdAt: now, updatedAt: now },
       },
-    })) as { _id: string };
-    userId = user._id;
+    })) as AuthUser;
+  }
+
+  const credentialWhere = [
+    { field: "userId" as const, value: user._id },
+    { field: "providerId" as const, value: "credential" },
+  ];
+  const account = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+    model: "account",
+    where: credentialWhere,
+  });
+  if (account) {
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: { model: "account", where: credentialWhere, update: { password: args.passwordHash, updatedAt: now } },
+    });
+  } else {
     await ctx.runMutation(components.betterAuth.adapter.create, {
       input: {
         model: "account",
         data: {
-          accountId: userId,
+          accountId: user._id,
           providerId: "credential",
-          userId,
+          userId: user._id,
           password: args.passwordHash,
           createdAt: now,
           updatedAt: now,
@@ -91,13 +93,13 @@ async function insertCredentialUserImpl(
       },
     });
   }
+  return user._id;
+}
 
-  const profile = await ctx.db
-    .query("profiles")
-    .withIndex("by_userId", (q) => q.eq("userId", userId))
-    .unique();
-  const doc = { userId, email, name: args.name, role: args.role, initials: initialsFor(args.name) };
-  if (profile) await ctx.db.patch(profile._id, doc);
-  else await ctx.db.insert("profiles", doc);
-  return userId;
+/** Signs a user out everywhere by deleting their sessions. */
+export async function revokeSessions(ctx: MutationCtx, userId: string) {
+  await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+    input: { model: "session", where: [{ field: "userId", value: userId }] },
+    paginationOpts: { cursor: null, numItems: 1000 },
+  });
 }

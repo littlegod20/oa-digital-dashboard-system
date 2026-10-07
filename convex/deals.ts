@@ -1,7 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
-import { getViewer, requireViewer } from "./lib";
+import { mutation, query, type QueryCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import { requirePermission, viewerWith } from "./lib";
 import { currency, phase } from "./schema";
 
 const dealFields = {
@@ -10,11 +10,15 @@ const dealFields = {
   value: v.number(),
   currency,
   phase,
-  assignee: v.string(),
+  ownerId: v.optional(v.id("employees")),
   paid: v.number(),
   nextAction: v.string(),
   notes: v.string(),
 };
+
+async function ownerName(ctx: QueryCtx, ownerId: Id<"employees"> | undefined) {
+  return ownerId ? ((await ctx.db.get(ownerId))?.name ?? "") : "";
+}
 
 function toDeal(d: Doc<"deals">) {
   return {
@@ -25,6 +29,7 @@ function toDeal(d: Doc<"deals">) {
     currency: d.currency,
     phase: d.phase,
     assignee: d.assignee,
+    ownerId: d.ownerId ?? null,
     paid: d.paid,
     nextAction: d.nextAction,
     notes: d.notes,
@@ -39,7 +44,7 @@ export type DealView = ReturnType<typeof toDeal>;
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    if (!(await getViewer(ctx))) return [];
+    if (!(await viewerWith(ctx, "pipeline.view"))) return [];
     const rows = await ctx.db.query("deals").withIndex("by_updatedAt").order("desc").collect();
     return rows.map(toDeal);
   },
@@ -48,24 +53,24 @@ export const list = query({
 export const create = mutation({
   args: dealFields,
   handler: async (ctx, args) => {
-    await requireViewer(ctx);
+    await requirePermission(ctx, "pipeline.view");
     const now = Date.now();
-    return await ctx.db.insert("deals", { ...args, createdAt: now, updatedAt: now });
+    return await ctx.db.insert("deals", { ...args, assignee: await ownerName(ctx, args.ownerId), createdAt: now, updatedAt: now });
   },
 });
 
 export const update = mutation({
   args: { id: v.id("deals"), ...dealFields },
   handler: async (ctx, { id, ...fields }) => {
-    await requireViewer(ctx);
-    await ctx.db.patch(id, { ...fields, updatedAt: Date.now() });
+    await requirePermission(ctx, "pipeline.view");
+    await ctx.db.patch(id, { ...fields, assignee: await ownerName(ctx, fields.ownerId), updatedAt: Date.now() });
   },
 });
 
 export const remove = mutation({
   args: { id: v.id("deals") },
   handler: async (ctx, { id }) => {
-    await requireViewer(ctx);
+    await requirePermission(ctx, "pipeline.view");
     await ctx.db.delete(id);
   },
 });

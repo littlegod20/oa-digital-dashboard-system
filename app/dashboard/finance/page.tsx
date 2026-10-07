@@ -14,7 +14,6 @@ import { CashCard, InkMetric, TransactionRow } from '@/components/dashboard/widg
 import { formatCurrency } from '@/lib/utils'
 import type { TransactionType } from '@/lib/types'
 import { AddTransactionModal } from '@/components/ui/add-transaction-modal'
-import { useRole } from '@/lib/role-context'
 
 const TX_TYPES = ['all', 'income', 'payment_received', 'expense', 'transfer'] as const
 type FilterType = typeof TX_TYPES[number]
@@ -35,7 +34,6 @@ export default function FinancePage() {
   const txData = useQuery(api.transactions.list)
   const dealsData = useQuery(api.deals.list)
   const createTransaction = useMutation(api.transactions.create)
-  const { isManagement, isSales } = useRole()
   const loading = txData === undefined || dealsData === undefined
   const transactions = useMemo(() => txData ?? [], [txData])
   const deals: Deal[] = dealsData ?? NO_DEALS
@@ -66,7 +64,7 @@ export default function FinancePage() {
       <PageHeader
         eyebrow="Money"
         title="Finance"
-        description={isManagement ? 'Account balances, cash flow and every transaction.' : 'Record transactions and track payments owed.'}
+        description="Account balances, cash flow and every transaction."
         actions={
           <button onClick={() => setTxModalOpen(true)} className="btn btn-primary">
             <PlusIcon size={16} weight="bold" />
@@ -79,33 +77,30 @@ export default function FinancePage() {
         <PageSkeleton />
       ) : (
         <>
-          {isManagement && (
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-              <div className="space-y-5 xl:col-span-8">
-                <StatStrip
-                  stats={[
-                    { label: 'Revenue', value: ghsK(kpi.revenueGHS), icon: ChartLineUpIcon, hint: formatCurrency(kpi.revenueGHS, 'GHS'), trend: 'up' },
-                    { label: 'Expenses', value: ghsK(kpi.expensesGHS), icon: ReceiptIcon, hint: formatCurrency(kpi.expensesGHS, 'GHS'), trend: 'down' },
-                    { label: 'Profit', value: ghsK(kpi.profitGHS), icon: TrendUpIcon, hint: kpi.revenueGHS > 0 ? `${((kpi.profitGHS / kpi.revenueGHS) * 100).toFixed(0)}% margin` : '—', trend: kpi.profitGHS >= 0 ? 'up' : 'down' },
-                  ]}
-                />
-                <OutstandingCard deals={outstanding} />
-              </div>
-              <CashCard
-                className="xl:sticky xl:top-0 xl:col-span-4 xl:self-start"
-                balanceGHS={kpi.balanceGHS}
-                balanceUSD={kpi.balanceUSD}
-                footer={
-                  <>
-                    <InkMetric label="Spend ratio" value={kpi.revenueGHS > 0 ? `${((kpi.expensesGHS / kpi.revenueGHS) * 100).toFixed(0)}%` : '—'} tone="warm" />
-                    <InkMetric label="Owed to us" value={ghsK(totalOwed)} />
-                  </>
-                }
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+            <div className="space-y-5 xl:col-span-8">
+              <StatStrip
+                stats={[
+                  { label: 'Revenue', value: ghsK(kpi.revenueGHS), icon: ChartLineUpIcon, hint: formatCurrency(kpi.revenueGHS, 'GHS'), trend: 'up' },
+                  { label: 'Expenses', value: ghsK(kpi.expensesGHS), icon: ReceiptIcon, hint: formatCurrency(kpi.expensesGHS, 'GHS'), trend: 'down' },
+                  { label: 'Profit', value: ghsK(kpi.profitGHS), icon: TrendUpIcon, hint: kpi.revenueGHS > 0 ? `${((kpi.profitGHS / kpi.revenueGHS) * 100).toFixed(0)}% margin` : '—', trend: kpi.profitGHS >= 0 ? 'up' : 'down' },
+                ]}
               />
+              <OutstandingCard deals={outstanding} />
             </div>
-          )}
+            <CashCard
+              className="xl:sticky xl:top-0 xl:col-span-4 xl:self-start"
+              balanceGHS={kpi.balanceGHS}
+              balanceUSD={kpi.balanceUSD}
+              footer={
+                <>
+                  <InkMetric label="Spend ratio" value={kpi.revenueGHS > 0 ? `${((kpi.expensesGHS / kpi.revenueGHS) * 100).toFixed(0)}%` : '—'} tone="warm" />
+                  <InkMetric label="Owed to us" value={ghsK(totalOwed)} />
+                </>
+              }
+            />
+          </div>
 
-          {isSales && <OutstandingCard deals={outstanding} />}
 
           <Card flush>
             <div className="flex flex-wrap items-center justify-between gap-3 p-5 md:p-6">

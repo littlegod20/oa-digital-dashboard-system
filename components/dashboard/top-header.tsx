@@ -17,7 +17,7 @@ import {
 import { useRole } from "@/lib/role-context";
 import { useIsMac, useTheme } from "@/lib/theme";
 import { Avatar } from "@/components/ui/avatar";
-import { NOTIF_UNREAD } from "@/components/dashboard/notification-sidebar";
+import { useNotifications } from "@/components/dashboard/notification-sidebar";
 import { ALL_NAV_ITEMS, isActivePath } from "./nav";
 
 interface TopHeaderProps {
@@ -35,6 +35,7 @@ export function TopHeader({ onOpenNav, onOpenSearch, onBellClick, onSignOut, not
     ALL_NAV_ITEMS[0];
   const { resolved, toggle } = useTheme();
   const isMac = useIsMac();
+  const { count: unread } = useNotifications();
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between gap-3 px-1 md:h-[4.5rem]">
@@ -70,11 +71,11 @@ export function TopHeader({ onOpenNav, onOpenSearch, onBellClick, onSignOut, not
           type="button"
           onClick={onBellClick}
           className="icon-btn"
-          aria-label={`Notifications${NOTIF_UNREAD ? `, ${NOTIF_UNREAD} unread` : ""}`}
+          aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
           aria-pressed={notifOpen}
         >
           <BellIcon size={19} weight={notifOpen ? "fill" : "regular"} />
-          {NOTIF_UNREAD > 0 && (
+          {unread > 0 && (
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-peach ring-2 ring-[var(--card-solid)]" />
           )}
         </button>
@@ -99,7 +100,7 @@ function UserMenu({ onSignOut }: { onSignOut: () => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const name = user?.name ?? "User";
-  const roleLabel = user?.role === "management" ? "Management" : user?.role === "sales" ? "Sales" : "";
+  const subtitle = user?.jobTitle ?? "";
 
   useEffect(() => {
     if (!open) return;
@@ -129,7 +130,7 @@ function UserMenu({ onSignOut }: { onSignOut: () => void }) {
         <Avatar name={name} size={32} />
         <span className="hidden text-left leading-tight md:block">
           <span className="block max-w-[9rem] truncate text-[12.5px] font-semibold text-fg">{name}</span>
-          <span className="block text-[11px] text-fg-3">{roleLabel}</span>
+          <span className="block max-w-[9rem] truncate text-[11px] text-fg-3">{subtitle}</span>
         </span>
         <CaretDownIcon size={14} className={`text-fg-3 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -147,7 +148,8 @@ function UserMenu({ onSignOut }: { onSignOut: () => void }) {
             </div>
           </div>
           <div className="px-3 pb-1 pt-2.5">
-            <span className={user?.role === "management" ? "badge badge-info" : "badge badge-success"}>{roleLabel}</span>
+            <span className="badge badge-info">{user?.accessLabel}</span>
+            {user?.department && <span className="badge badge-neutral ml-1.5">{user.department}</span>}
           </div>
           <Link
             href="/dashboard/settings"

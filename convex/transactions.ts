@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import { getViewer, optional, requireViewer } from "./lib";
+import { optional, requirePermission, viewerWith } from "./lib";
 import { currency, transactionType } from "./schema";
 
 function toTransaction(t: Doc<"transactions">) {
@@ -24,7 +24,7 @@ export type TransactionView = ReturnType<typeof toTransaction>;
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    if (!(await getViewer(ctx))) return [];
+    if (!(await viewerWith(ctx, "finance.view"))) return [];
     const rows = await ctx.db.query("transactions").withIndex("by_date").order("desc").collect();
     return rows.map(toTransaction);
   },
@@ -41,7 +41,7 @@ export const create = mutation({
     date: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireViewer(ctx);
+    await requirePermission(ctx, "finance.view");
     return await ctx.db.insert("transactions", {
       type: args.type,
       description: args.description.trim(),

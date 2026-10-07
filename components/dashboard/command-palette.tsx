@@ -13,6 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/theme";
+import { useRole } from "@/lib/role-context";
 import { ALL_NAV_ITEMS } from "./nav";
 
 type Command = {
@@ -40,13 +41,14 @@ export function CommandPalette({
 function PaletteDialog({ onClose, onSignOut }: { onClose: () => void; onSignOut: () => void }) {
   const router = useRouter();
   const { resolved, toggle } = useTheme();
+  const { can } = useRole();
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
 
   const commands = useMemo<Command[]>(
     () => [
-      ...ALL_NAV_ITEMS.map((item) => ({
+      ...ALL_NAV_ITEMS.filter((item) => !item.permission || can(item.permission)).map((item) => ({
         id: item.href,
         label: item.label,
         hint: item.description,
@@ -71,7 +73,7 @@ function PaletteDialog({ onClose, onSignOut }: { onClose: () => void; onSignOut:
         run: onSignOut,
       },
     ],
-    [router, resolved, toggle, onSignOut],
+    [router, resolved, toggle, onSignOut, can],
   );
 
   const q = query.trim().toLowerCase();

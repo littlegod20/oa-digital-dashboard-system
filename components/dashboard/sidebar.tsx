@@ -6,7 +6,8 @@ import { usePathname } from "next/navigation";
 import { SidebarSimpleIcon, SignOutIcon, XIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/ui/brand-mark";
-import { NAV_SECTIONS, SETTINGS_ITEM, isActivePath, type NavItem } from "./nav";
+import { useRole } from "@/lib/role-context";
+import { SETTINGS_ITEM, isActivePath, visibleSections, type NavItem } from "./nav";
 
 type SidebarProps = {
   collapsed: boolean;
@@ -61,6 +62,8 @@ function SidebarContent({
   onClose?: () => void;
   onSignOut: () => void;
 }) {
+  const { can } = useRole();
+  const sections = visibleSections(can);
   return (
     <>
       {/* Brand */}
@@ -98,7 +101,7 @@ function SidebarContent({
 
       {/* Nav */}
       <nav className={cn("flex-1 space-y-6 overflow-y-auto pb-4 pt-2", collapsed ? "px-3" : "px-4")}>
-        {NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.label}>
             {collapsed ? (
               <div className="mx-auto mb-2 h-px w-6 bg-line" />

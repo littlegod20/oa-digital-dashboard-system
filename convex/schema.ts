@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { ACCESS_ROLES } from "./permissions";
 
 export const currency = v.union(v.literal("GHS"), v.literal("USD"));
 
@@ -23,8 +24,45 @@ export const transactionType = v.union(
 
 export const role = v.union(v.literal("management"), v.literal("sales"));
 
+export const accessRole = v.union(...ACCESS_ROLES.map((r) => v.literal(r)));
+
 export default defineSchema({
-  // App-side profile for each Better Auth user (credentials live in the betterAuth component).
+  departments: defineTable({
+    name: v.string(),
+    createdAt: v.number(),
+  }).index("by_name", ["name"]),
+
+  // Everyone in the company. `userId` links a Better Auth login once their invite is accepted.
+  employees: defineTable({
+    name: v.string(),
+    email: v.string(), // login email (lowercase)
+    phone: v.optional(v.string()),
+    jobTitle: v.string(),
+    departmentId: v.optional(v.id("departments")),
+    lineManagerId: v.optional(v.id("employees")),
+    accessRole,
+    userId: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("disabled")),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_email", ["email"])
+    .index("by_name", ["name"])
+    .index("by_department", ["departmentId"]),
+
+  // Single-use "set your password" links. Only a SHA-256 hash of the token is stored.
+  invites: defineTable({
+    employeeId: v.id("employees"),
+    tokenHash: v.string(),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+    createdBy: v.optional(v.id("employees")),
+    createdAt: v.number(),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_employee", ["employeeId"]),
+
+  // DEPRECATED: replaced by `employees`. Kept until production has migrated.
   profiles: defineTable({
     userId: v.string(),
     email: v.string(),
@@ -41,7 +79,8 @@ export default defineSchema({
     value: v.number(),
     currency,
     phase,
-    assignee: v.string(),
+    assignee: v.string(), // display name, kept in sync with ownerId
+    ownerId: v.optional(v.id("employees")),
     paid: v.number(),
     nextAction: v.string(),
     notes: v.string(),
@@ -73,6 +112,7 @@ export default defineSchema({
   })
     .index("by_name", ["name"]),
 
+  // DEPRECATED: replaced by `employees`. Kept until production has migrated.
   teamMembers: defineTable({
     name: v.string(),
     role: v.string(),

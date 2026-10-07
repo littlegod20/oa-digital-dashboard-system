@@ -13,9 +13,12 @@ import type * as contacts from "../contacts.js";
 import type * as deals from "../deals.js";
 import type * as email from "../email.js";
 import type * as http from "../http.js";
+import type * as invites from "../invites.js";
 import type * as lib from "../lib.js";
+import type * as migrations from "../migrations.js";
 import type * as password from "../password.js";
-import type * as team from "../team.js";
+import type * as people from "../people.js";
+import type * as permissions from "../permissions.js";
 import type * as transactions from "../transactions.js";
 import type * as users from "../users.js";
 
@@ -31,9 +34,12 @@ declare const fullApi: ApiFromModules<{
   deals: typeof deals;
   email: typeof email;
   http: typeof http;
+  invites: typeof invites;
   lib: typeof lib;
+  migrations: typeof migrations;
   password: typeof password;
-  team: typeof team;
+  people: typeof people;
+  permissions: typeof permissions;
   transactions: typeof transactions;
   users: typeof users;
 }>;

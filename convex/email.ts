@@ -5,8 +5,8 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-function resetEmailHtml(name: string, url: string) {
-  const safeName = escapeHtml(name);
+/** Branded email shell: a dark header, a heading, a paragraph and one call-to-action button. */
+function layout({ heading, intro, button, url, footnote }: { heading: string; intro: string; button: string; url: string; footnote: string }) {
   const safeUrl = escapeHtml(url);
   return `<!doctype html>
 <html>
@@ -23,16 +23,13 @@ function resetEmailHtml(name: string, url: string) {
             </tr>
             <tr>
               <td style="padding:32px;">
-                <p style="margin:0 0 8px;font-size:20px;font-weight:600;">Reset your password</p>
-                <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#475467;">
-                  Hi ${safeName}, we received a request to reset the password for your OA Digital account.
-                  This link expires in 1 hour.
-                </p>
+                <p style="margin:0 0 8px;font-size:20px;font-weight:600;">${escapeHtml(heading)}</p>
+                <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#475467;">${intro}</p>
                 <a href="${safeUrl}" style="display:inline-block;background:#1551b5;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:999px;">
-                  Choose a new password
+                  ${escapeHtml(button)}
                 </a>
                 <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#8A94A6;">
-                  If you didn't ask for this, you can ignore this email; your password won't change.<br />
+                  ${footnote}<br />
                   Button not working? Paste this link into your browser:<br />
                   <span style="color:#1551b5;word-break:break-all;">${safeUrl}</span>
                 </p>
@@ -47,34 +44,59 @@ function resetEmailHtml(name: string, url: string) {
 }
 
 /**
- * Sends the password-reset email through Resend.
- * Requires RESEND_API_KEY and AUTH_EMAIL_FROM on the Convex deployment; until they are
- * set, the link is written to the Convex logs instead so an admin can pass it on.
+ * Sends through Resend. Needs RESEND_API_KEY and AUTH_EMAIL_FROM on the deployment;
+ * until they are set, the message (with its link) goes to the Convex logs instead.
  */
+async function send(to: string, subject: string, html: string, text: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.AUTH_EMAIL_FROM;
+  if (!apiKey || !from) {
+    console.warn(`[email] Not configured (RESEND_API_KEY / AUTH_EMAIL_FROM). To ${to}: ${subject}\n${text}`);
+    return;
+  }
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: [to], subject, html, text }),
+  });
+  if (!res.ok) {
+    // Throwing marks the action as failed in the Convex dashboard logs.
+    throw new Error(`Resend rejected "${subject}" for ${to}: ${res.status} ${await res.text()}`);
+  }
+}
+
 export const sendPasswordReset = internalAction({
   args: { to: v.string(), name: v.string(), url: v.string() },
   handler: async (_ctx, { to, name, url }) => {
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.AUTH_EMAIL_FROM;
-    if (!apiKey || !from) {
-      console.warn(`[password-reset] Email not configured (RESEND_API_KEY / AUTH_EMAIL_FROM). Link for ${to}: ${url}`);
-      return;
-    }
-
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from,
-        to: [to],
-        subject: "Reset your OA Digital password",
-        html: resetEmailHtml(name, url),
-        text: `Hi ${name},\n\nReset your OA Digital password using this link (valid for 1 hour):\n${url}\n\nIf you didn't ask for this, ignore this email.`,
+    await send(
+      to,
+      "Reset your OA Digital password",
+      layout({
+        heading: "Reset your password",
+        intro: `Hi ${escapeHtml(name)}, we received a request to reset the password for your OA Digital account. This link expires in 1 hour.`,
+        button: "Choose a new password",
+        url,
+        footnote: "If you didn't ask for this, you can ignore this email; your password won't change.",
       }),
-    });
-    if (!res.ok) {
-      // Throwing marks the action as failed in the Convex dashboard logs.
-      throw new Error(`Resend rejected the reset email for ${to}: ${res.status} ${await res.text()}`);
-    }
+      `Hi ${name},\n\nReset your OA Digital password using this link (valid for 1 hour):\n${url}\n\nIf you didn't ask for this, ignore this email.`,
+    );
+  },
+});
+
+export const sendInvite = internalAction({
+  args: { to: v.string(), name: v.string(), inviterName: v.string(), url: v.string() },
+  handler: async (_ctx, { to, name, inviterName, url }) => {
+    await send(
+      to,
+      "You're invited to the OA Digital Command Center",
+      layout({
+        heading: `Welcome aboard, ${name.split(" ")[0]}`,
+        intro: `${escapeHtml(inviterName)} has set up your OA Digital account. Choose a password to sign in to the Command Center. This link works once and expires in 7 days.`,
+        button: "Set your password",
+        url,
+        footnote: "Weren't expecting this? You can ignore this email.",
+      }),
+      `Hi ${name},\n\n${inviterName} has set up your OA Digital account. Set your password here (valid for 7 days, works once):\n${url}`,
+    );
   },
 });

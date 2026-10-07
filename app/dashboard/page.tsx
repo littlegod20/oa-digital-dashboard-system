@@ -12,6 +12,7 @@ import {
   KanbanIcon,
   ReceiptIcon,
   TrendUpIcon,
+  UsersThreeIcon,
 } from '@phosphor-icons/react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardHeader, InkCard } from '@/components/ui/card'
@@ -56,16 +57,9 @@ interface Transaction {
   orderId?: string
 }
 
-interface Member {
-  name: string
-  role: string
-  activeDeals: number
-  totalRevenue: string | number
-}
 
 const NO_DEALS: Deal[] = []
 const NO_TRANSACTIONS: Transaction[] = []
-const NO_MEMBERS: Member[] = []
 
 function n(v: string | number): number {
   return Number(v)
@@ -118,14 +112,20 @@ function greeting() {
 }
 
 export default function OverviewPage() {
-  const { user, isManagement } = useRole()
+  const { can } = useRole()
+  return can('pipeline.view') ? <BusinessOverview /> : <PersonalOverview />
+}
+
+/** Leadership view. Money (revenue, balances, transactions) only with finance access. */
+function BusinessOverview() {
+  const { user, can } = useRole()
+  const isManagement = can('finance.view')
   const dealsData = useQuery(api.deals.list)
   const txData = useQuery(api.transactions.list)
-  const teamData = useQuery(api.team.list)
-  const loading = dealsData === undefined || txData === undefined || teamData === undefined
+  const directory = useQuery(api.people.directory)
+  const loading = dealsData === undefined || txData === undefined || directory === undefined
   const deals: Deal[] = dealsData ?? NO_DEALS
   const transactions: Transaction[] = txData ?? NO_TRANSACTIONS
-  const team: Member[] = teamData ?? NO_MEMBERS
 
   const kpi = useMemo(() => {
     const ghsTx = transactions.filter((t) => t.currency === 'GHS')
@@ -177,12 +177,14 @@ export default function OverviewPage() {
     [deals]
   )
 
-  const performers: Performer[] = team.map((m) => ({
-    name: m.name,
-    role: m.role,
-    revenue: n(m.totalRevenue),
-    activeDeals: m.activeDeals,
-  }))
+  const performers: Performer[] = (directory?.people ?? [])
+    .filter((p) => p.dealStats)
+    .map((p) => ({
+      name: p.name,
+      role: p.jobTitle,
+      revenue: p.dealStats!.collected,
+      activeDeals: p.dealStats!.active,
+    }))
 
   const recentTx = transactions.slice(0, 5)
   const firstName = user?.name?.split(' ')[0] ?? 'there'
@@ -203,10 +205,16 @@ export default function OverviewPage() {
             <KanbanIcon size={17} />
             Pipeline
           </Link>
-          <Link href="/dashboard/finance" className="btn btn-primary">
-            <ReceiptIcon size={17} weight="bold" />
-            Transactions
-          </Link>
+          {isManagement ? (
+            <Link href="/dashboard/finance" className="btn btn-primary">
+              <ReceiptIcon size={17} weight="bold" />
+              Transactions
+            </Link>
+          ) : (
+            <Link href="/dashboard/team" className="btn btn-primary">
+              People
+            </Link>
+          )}
         </>
       }
     />
@@ -326,7 +334,7 @@ export default function OverviewPage() {
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
         {/* Active deals */}
-        <Card flush className="lg:col-span-7">
+        <Card flush className={isManagement ? 'lg:col-span-7' : 'lg:col-span-12'}>
           <div className="p-5 pb-0 md:p-6 md:pb-0">
             <CardHeader
               title="Active deals"
@@ -368,29 +376,30 @@ export default function OverviewPage() {
           </ul>
         </Card>
 
-        {/* Recent transactions */}
-        <Card flush className="lg:col-span-5">
-          <div className="p-5 pb-0 md:p-6 md:pb-0">
-            <CardHeader
-              title="Recent transactions"
-              description="Latest money in and out"
-              action={
-                <Link href="/dashboard/finance" className="btn btn-ghost btn-sm">
-                  View all <ArrowRightIcon size={14} weight="bold" />
-                </Link>
-              }
-              className="mb-3"
-            />
-          </div>
-          <div className="divide-y divide-line">
-            {recentTx.map((tx) => (
-              <TransactionRow key={tx.id} tx={tx} compact />
-            ))}
-            {recentTx.length === 0 && (
-              <p className="px-6 py-10 text-center text-[13px] text-fg-3">No transactions yet.</p>
-            )}
-          </div>
-        </Card>
+        {isManagement && (
+          <Card flush className="lg:col-span-5">
+            <div className="p-5 pb-0 md:p-6 md:pb-0">
+              <CardHeader
+                title="Recent transactions"
+                description="Latest money in and out"
+                action={
+                  <Link href="/dashboard/finance" className="btn btn-ghost btn-sm">
+                    View all <ArrowRightIcon size={14} weight="bold" />
+                  </Link>
+                }
+                className="mb-3"
+              />
+            </div>
+            <div className="divide-y divide-line">
+              {recentTx.map((tx) => (
+                <TransactionRow key={tx.id} tx={tx} compact />
+              ))}
+              {recentTx.length === 0 && (
+                <p className="px-6 py-10 text-center text-[13px] text-fg-3">No transactions yet.</p>
+              )}
+            </div>
+          </Card>
+        )}
       </div>
 
     </div>
@@ -437,11 +446,109 @@ function FollowUpCard({ deals }: { deals: Deal[] }) {
         {deals.length === 0 && <li className="py-8 text-center text-[13px] text-ink-muted">All balances settled</li>}
       </ul>
       <Link
-        href="/dashboard/finance"
+        href="/dashboard/pipeline"
         className="relative z-10 mt-auto inline-flex items-center gap-2 pt-4 text-[13px] font-semibold text-white/90 hover:text-white"
       >
-        Open finance <ArrowRightIcon size={14} weight="bold" />
+        Open pipeline <ArrowRightIcon size={14} weight="bold" />
       </Link>
     </InkCard>
+  )
+}
+
+/** Everyone without pipeline access: their profile, their department, and who's who. */
+function PersonalOverview() {
+  const { user } = useRole()
+  const directory = useQuery(api.people.directory)
+  const firstName = user?.name?.split(' ')[0] ?? 'there'
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  const header = (
+    <PageHeader
+      eyebrow={today}
+      title={`${greeting()}, ${firstName}`}
+      description="Your profile, your team and who to go to for what."
+      actions={
+        <Link href="/dashboard/team" className="btn btn-primary">
+          <UsersThreeIcon size={17} weight="bold" />
+          People
+        </Link>
+      }
+    />
+  )
+
+  if (!directory || !user) {
+    return (
+      <div className="space-y-6">
+        {header}
+        <PageSkeleton rows={1} />
+      </div>
+    )
+  }
+
+  const me = directory.people.find((p) => p.isYou)
+  const teammates = directory.people.filter((p) => !p.isYou && me?.departmentId && p.departmentId === me.departmentId)
+  const leads = directory.people.filter((p) => p.accessRole !== 'staff' && !p.isYou)
+
+  return (
+    <div className="space-y-6">
+      {header}
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+        <InkCard className="flex flex-col xl:col-span-4">
+          <div className="relative z-10 flex items-center gap-4">
+            <Avatar name={user.name} size={56} />
+            <div className="min-w-0">
+              <p className="truncate font-display text-[20px] font-semibold">{user.name}</p>
+              <p className="truncate text-[13px] text-ink-muted">{user.jobTitle}</p>
+            </div>
+          </div>
+          <dl className="relative z-10 mt-6 space-y-0">
+            <InkMetric label="Department" value={user.department ?? 'Not set'} />
+            <InkMetric label="Line manager" value={user.lineManager?.name ?? 'None'} />
+            <InkMetric label="Access" value={user.accessLabel} tone="warm" />
+          </dl>
+          <Link
+            href="/dashboard/settings"
+            className="relative z-10 mt-auto inline-flex items-center gap-2 pt-5 text-[13px] font-semibold text-white/90 hover:text-white"
+          >
+            Account settings <ArrowRightIcon size={14} weight="bold" />
+          </Link>
+        </InkCard>
+
+        <Card className="xl:col-span-8">
+          <CardHeader
+            title={user.department ? `Your team · ${user.department}` : 'Your team'}
+            description={teammates.length ? `${teammates.length} colleague${teammates.length !== 1 ? 's' : ''} in your department` : 'Nobody else is in your department yet'}
+          />
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {teammates.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 rounded-2xl bg-muted p-3">
+                <Avatar name={p.name} size={40} />
+                <div className="min-w-0">
+                  <p className="truncate text-[13.5px] font-semibold text-fg">{p.name}</p>
+                  <p className="truncate text-[12px] text-fg-3">{p.jobTitle}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader title="Who to go to" description="Leadership and the people who run each area" />
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {leads.map((p) => (
+            <li key={p.id} className="flex items-center gap-3 rounded-2xl bg-muted p-3">
+              <Avatar name={p.name} size={40} />
+              <div className="min-w-0">
+                <p className="truncate text-[13.5px] font-semibold text-fg">{p.name}</p>
+                <p className="truncate text-[12px] text-fg-3">{p.jobTitle}</p>
+                {p.department && <p className="truncate text-[11px] text-fg-3">{p.department}</p>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </div>
   )
 }

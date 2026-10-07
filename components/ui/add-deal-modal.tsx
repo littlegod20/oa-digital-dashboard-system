@@ -13,7 +13,8 @@ export interface DealDraft {
   value: string;
   currency: Currency;
   phase: PipelinePhase;
-  assignee: string;
+  /** Employee id of the deal owner, or "" for nobody. */
+  ownerId: string;
   paid: string;
   nextAction: string;
   notes: string;
@@ -27,7 +28,7 @@ const empty: DealDraft = {
   value: "",
   currency: "GHS",
   phase: "lead",
-  assignee: "",
+  ownerId: "",
   paid: "0",
   nextAction: "",
   notes: "",
@@ -38,10 +39,10 @@ interface DealModalProps {
   onClose: () => void;
   onSave?: (deal: DealDraft) => void;
   initial?: DealModalValues | null;
-  assignees?: string[];
+  people?: { id: string; name: string }[];
 }
 
-export function AddDealModal({ open, onClose, onSave, initial, assignees = [] }: DealModalProps) {
+export function AddDealModal({ open, onClose, onSave, initial, people = [] }: DealModalProps) {
   const editing = Boolean(initial?.id);
 
   return (
@@ -54,7 +55,7 @@ export function AddDealModal({ open, onClose, onSave, initial, assignees = [] }:
       width="32rem"
     >
       {/* Remounts per opened record, so the form state starts from props without an effect. */}
-      <DealForm key={initial?.id ?? "new"} initial={initial} onSave={onSave} onClose={onClose} assignees={assignees} />
+      <DealForm key={initial?.id ?? "new"} initial={initial} onSave={onSave} onClose={onClose} people={people} />
     </Modal>
   );
 }
@@ -63,12 +64,12 @@ function DealForm({
   initial,
   onSave,
   onClose,
-  assignees,
+  people,
 }: {
   initial?: DealModalValues | null;
   onSave?: (deal: DealDraft) => void;
   onClose: () => void;
-  assignees: string[];
+  people: { id: string; name: string }[];
 }) {
   const [form, setForm] = useState<DealDraft>(() =>
     initial
@@ -78,7 +79,7 @@ function DealForm({
           value: String(initial.value ?? ""),
           currency: initial.currency,
           phase: initial.phase,
-          assignee: initial.assignee,
+          ownerId: initial.ownerId,
           paid: String(initial.paid ?? "0"),
           nextAction: initial.nextAction,
           notes: initial.notes,
@@ -166,20 +167,13 @@ function DealForm({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Assignee">
-          <Input
-            list="deal-assignees"
-            placeholder="e.g. Gerhard"
-            value={form.assignee}
-            onChange={(e) => set("assignee", e.target.value)}
-          />
-          {assignees.length > 0 && (
-            <datalist id="deal-assignees">
-              {assignees.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-          )}
+        <Field label="Owner">
+          <Select value={form.ownerId} onChange={(e) => set("ownerId", e.target.value)}>
+            <option value="">Nobody yet</option>
+            {people.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </Select>
         </Field>
         <Field label="Next Action">
           <Input

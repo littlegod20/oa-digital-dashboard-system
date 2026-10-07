@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import type { Icon } from "@phosphor-icons/react";
-import { CheckCircleIcon, DesktopIcon, MoonIcon, SunIcon, WarningIcon } from "@phosphor-icons/react";
-import { Field, Input, Select } from "@/components/ui/field";
+import { CheckCircleIcon, DesktopIcon, LockSimpleIcon, MoonIcon, SunIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import { Alert, Field, Input } from "@/components/ui/field";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { useRole } from "@/lib/role-context";
 import { useTheme, type ThemePreference } from "@/lib/theme";
+import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: Icon }[] = [
@@ -20,62 +21,44 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: Icon }[] = [
 export default function SettingsPage() {
   const { user } = useRole();
   const { preference, setPreference } = useTheme();
-  const [name, setName] = useState(user?.name ?? "");
-  const [email, setEmail] = useState(user?.email ?? "");
-  const [currency, setCurrency] = useState("GHS");
-  const [saved, setSaved] = useState(false);
-  const roleLabel = user?.role === "management" ? "Management" : user?.role === "sales" ? "Sales" : "Member";
+  if (!user) return null;
 
-  function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  }
+  const details: [string, string][] = [
+    ["Email", user.email],
+    ["Job title", user.jobTitle],
+    ["Department", user.department ?? "Not set"],
+    ["Line manager", user.lineManager?.name ?? "None"],
+    ["Access", user.accessLabel],
+  ];
 
   return (
     <div className="max-w-3xl space-y-6">
-      <PageHeader eyebrow="Account" title="Settings" description="Manage your profile and preferences." />
+      <PageHeader eyebrow="Account" title="Settings" description="Your profile, password and preferences." />
 
       {/* Profile */}
       <Card flush className="overflow-hidden">
         <div className="h-24 md:h-28" style={{ background: "var(--ink-bg)" }} />
-        <form onSubmit={handleSave} className="px-5 pb-6 md:px-6">
-          <Avatar name={name || "User"} size={80} className="-mt-10 ring-4 ring-[var(--card-solid)]" />
+        <div className="px-5 pb-6 md:px-6">
+          <Avatar name={user.name} size={80} className="-mt-10 ring-4 ring-[var(--card-solid)]" />
           <div className="mt-3 flex flex-wrap items-center gap-2.5">
-            <p className="font-display text-[20px] font-semibold text-fg">{name || "Your name"}</p>
-            <span className={user?.role === "management" ? "badge badge-info" : "badge badge-success"}>{roleLabel}</span>
+            <p className="font-display text-[20px] font-semibold text-fg">{user.name}</p>
+            <span className="badge badge-info">{user.accessLabel}</span>
           </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <Field label="Full name">
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </Field>
-            <Field label="Email">
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </Field>
-            <Field label="Role">
-              <Input value={roleLabel} disabled className="cursor-not-allowed opacity-70" />
-            </Field>
-            <Field label="Default currency">
-              <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option value="GHS">GHS – Ghanaian Cedi</option>
-                <option value="USD">USD – US Dollar</option>
-                <option value="EUR">EUR – Euro</option>
-              </Select>
-            </Field>
-          </div>
-
-          <div className="mt-6 flex items-center gap-3">
-            <button type="submit" className="btn btn-primary">Save changes</button>
-            {saved && (
-              <span className="animate-fade flex items-center gap-1.5 text-[12.5px] font-medium text-success" role="status">
-                <CheckCircleIcon size={17} weight="fill" />
-                Saved
-              </span>
-            )}
-          </div>
-        </form>
+          <dl className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
+            {details.map(([label, value]) => (
+              <div key={label}>
+                <dt className="text-[12px] font-semibold text-fg-3">{label}</dt>
+                <dd className="mt-0.5 truncate text-[13.5px] text-fg">{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-5 text-[12px] text-fg-3">
+            Your job title, department and line manager are managed by HR. Ask them if anything is wrong.
+          </p>
+        </div>
       </Card>
+
+      <ChangePasswordCard />
 
       {/* Appearance */}
       <Card>
@@ -104,22 +87,66 @@ export default function SettingsPage() {
           })}
         </div>
       </Card>
-
-      {/* Danger zone */}
-      <Card className="shadow-[0_0_0_1px_color-mix(in_srgb,var(--status-danger)_25%,transparent)]">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-danger-soft text-danger">
-            <WarningIcon size={22} weight="duotone" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-display text-[16px] font-semibold text-fg">Delete account</h2>
-            <p className="text-[13px] text-fg-2">Once you delete your account, there is no going back.</p>
-          </div>
-          <button type="button" className="btn bg-danger-soft text-danger hover:bg-danger hover:text-white">
-            Delete account
-          </button>
-        </div>
-      </Card>
     </div>
+  );
+}
+
+function ChangePasswordCard() {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setDone(false);
+    if (next !== confirm) return setError("New passwords do not match.");
+    if (next.length < 8) return setError("New password must be at least 8 characters.");
+    setBusy(true);
+    setError("");
+    const { error: err } = await authClient.changePassword({
+      currentPassword: current,
+      newPassword: next,
+      revokeOtherSessions: true,
+    });
+    setBusy(false);
+    if (err) {
+      setError(err.code === "INVALID_PASSWORD" ? "Your current password is incorrect." : (err.message ?? "Couldn't change your password."));
+      return;
+    }
+    setCurrent("");
+    setNext("");
+    setConfirm("");
+    setDone(true);
+  }
+
+  return (
+    <Card>
+      <CardHeader title="Password" description="Changing it signs you out on your other devices." />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && <Alert icon={WarningCircleIcon}>{error}</Alert>}
+        {done && (
+          <Alert tone="success" icon={CheckCircleIcon}>
+            Password changed.
+          </Alert>
+        )}
+        <Field label="Current password">
+          <Input icon={LockSimpleIcon} type="password" required autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="New password">
+            <Input type="password" required autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="At least 8 characters" />
+          </Field>
+          <Field label="Confirm new password">
+            <Input type="password" required autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          </Field>
+        </div>
+        <button type="submit" disabled={busy} className="btn btn-primary">
+          {busy ? "Changing…" : "Change password"}
+        </button>
+      </form>
+    </Card>
   );
 }

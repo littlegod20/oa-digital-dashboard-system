@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
-import { getViewer, optional, requireViewer } from "./lib";
+import { optional, requirePermission, viewerWith } from "./lib";
 
 function toContact(c: Doc<"contacts">) {
   return {
@@ -22,7 +22,7 @@ export type ContactView = ReturnType<typeof toContact>;
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    if (!(await getViewer(ctx))) return [];
+    if (!(await viewerWith(ctx, "pipeline.view"))) return [];
     const rows = await ctx.db.query("contacts").withIndex("by_name").collect();
     return rows.map(toContact);
   },
@@ -38,7 +38,7 @@ export const create = mutation({
     tags: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireViewer(ctx);
+    await requirePermission(ctx, "pipeline.view");
     return await ctx.db.insert("contacts", {
       name: args.name.trim(),
       company: optional(args.company),

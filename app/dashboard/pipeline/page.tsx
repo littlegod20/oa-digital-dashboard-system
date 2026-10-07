@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '@/convex/_generated/api'
 import type { DealView } from '@/convex/deals'
+import type { Id } from '@/convex/_generated/dataModel'
 import { KanbanIcon, PlusIcon } from '@phosphor-icons/react'
 import { PipelineCard } from '@/components/ui/pipeline-card'
 import { PageHeader } from '@/components/ui/page-header'
@@ -29,7 +30,7 @@ function fromDraft(form: DealDraft) {
     value: Number(form.value) || 0,
     currency: form.currency,
     phase: form.phase,
-    assignee: form.assignee.trim(),
+    ownerId: (form.ownerId || undefined) as Id<'employees'> | undefined,
     paid: Number(form.paid) || 0,
     nextAction: form.nextAction.trim(),
     notes: form.notes.trim(),
@@ -46,13 +47,13 @@ export default function PipelinePage() {
   const [editing, setEditing] = useState<Deal | null>(null)
   const [removing, setRemoving] = useState<Deal | null>(null)
   const dealsData = useQuery(api.deals.list)
-  const teamData = useQuery(api.team.list)
+  const directory = useQuery(api.people.directory)
   const createDeal = useMutation(api.deals.create)
   const updateDeal = useMutation(api.deals.update)
   const removeDeal = useMutation(api.deals.remove)
   const loading = dealsData === undefined
   const deals = dealsData ?? NO_DEALS
-  const assignees = (teamData ?? []).map((m) => m.name)
+  const people = (directory?.people ?? []).map((p) => ({ id: p.id, name: p.name }))
 
   function openAdd() {
     setEditing(null)
@@ -190,12 +191,12 @@ export default function PipelinePage() {
           value: String(n(editing.value)),
           currency: editing.currency,
           phase: editing.phase,
-          assignee: editing.assignee,
+          ownerId: editing.ownerId ?? '',
           paid: String(n(editing.paid)),
           nextAction: editing.nextAction,
           notes: editing.notes,
         } : null}
-        assignees={assignees}
+        people={people}
         onSave={handleSave}
       />
 

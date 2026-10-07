@@ -7,23 +7,31 @@ import {
   UsersThreeIcon,
   WalletIcon,
 } from "@phosphor-icons/react";
+import type { Permission } from "@/convex/permissions";
 
-export type NavItem = { href: string; label: string; icon: Icon; description: string };
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: Icon;
+  description: string;
+  /** Hidden unless the viewer holds this permission. */
+  permission?: Permission;
+};
 
 export const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "Main menu",
     items: [
-      { href: "/dashboard",          label: "Overview", icon: SquaresFourIcon, description: "Business at a glance" },
-      { href: "/dashboard/pipeline", label: "Pipeline", icon: KanbanIcon,      description: "Deals by phase" },
+      { href: "/dashboard",          label: "Overview", icon: SquaresFourIcon, description: "Your day at a glance" },
+      { href: "/dashboard/team",     label: "People",   icon: UsersThreeIcon,  description: "Directory & departments" },
     ],
   },
   {
-    label: "Management",
+    label: "Business",
     items: [
-      { href: "/dashboard/finance",  label: "Finance",  icon: WalletIcon,      description: "Balances & transactions" },
-      { href: "/dashboard/team",     label: "Team",     icon: UsersThreeIcon,  description: "People & performance" },
-      { href: "/dashboard/contacts", label: "Contacts", icon: AddressBookIcon, description: "Clients & prospects" },
+      { href: "/dashboard/pipeline", label: "Pipeline", icon: KanbanIcon,      description: "Deals by phase",          permission: "pipeline.view" },
+      { href: "/dashboard/contacts", label: "Contacts", icon: AddressBookIcon, description: "Clients & prospects",     permission: "pipeline.view" },
+      { href: "/dashboard/finance",  label: "Finance",  icon: WalletIcon,      description: "Balances & transactions", permission: "finance.view" },
     ],
   },
 ];
@@ -32,10 +40,17 @@ export const SETTINGS_ITEM: NavItem = {
   href: "/dashboard/settings",
   label: "Settings",
   icon: GearSixIcon,
-  description: "Profile & preferences",
+  description: "Profile, password & preferences",
 };
 
 export const ALL_NAV_ITEMS: NavItem[] = [...NAV_SECTIONS.flatMap((s) => s.items), SETTINGS_ITEM];
+
+/** Sections with only the items the viewer may see; empty sections are dropped. */
+export function visibleSections(can: (p: Permission) => boolean) {
+  return NAV_SECTIONS.map((s) => ({ ...s, items: s.items.filter((i) => !i.permission || can(i.permission)) })).filter(
+    (s) => s.items.length > 0,
+  );
+}
 
 export function isActivePath(pathname: string, href: string) {
   return href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
