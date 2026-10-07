@@ -7,16 +7,21 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "convex": "convex dev"
+    "convex": "convex dev",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
     "@convex-dev/better-auth": "^0.12.5",
+    "@opennextjs/cloudflare": "^1.20.9",
     "@phosphor-icons/react": "^2.1.10",
     "bcryptjs": "^2.4.3",
     "better-auth": "1.6.17",
     "clsx": "^2.1.1",
     "convex": "^1.46.0",
-    "next": "16.3.3",
+    "next": "^16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "recharts": "^2.15.4",
@@ -29,8 +34,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.3",
+    "eslint-config-next": "^16.3.8",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.148.0"
   }
 }

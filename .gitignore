@@ -40,3 +40,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Convex data exports (contain password hashes)
+convex-backup*.zip
+
+# OpenNext / Wrangler
+.open-next
+.wrangler
+.dev.vars*
