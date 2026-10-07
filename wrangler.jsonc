@@ -8,6 +8,11 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // Cloudflare creates the DNS record and certificate on deploy (the zone is in this account).
+  // Sign-in only works on SITE_URL, so this must match SITE_URL on the Convex deployment.
+  "routes": [
+    { "pattern": "poweroavantage.com", "custom_domain": true }
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
