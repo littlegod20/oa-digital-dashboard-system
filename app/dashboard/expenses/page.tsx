@@ -8,7 +8,6 @@ import {
   CheckCircleIcon,
   ClockIcon,
   CoinsIcon,
-  PaperclipIcon,
   PlusIcon,
   ReceiptIcon,
   WalletIcon,
@@ -24,6 +23,7 @@ import { EmptyState, PageSkeleton } from '@/components/ui/states'
 import { ConfirmDialog } from '@/components/ui/modal'
 import { RequestStatusBadge, StepsTimeline } from '@/components/work/request-status'
 import { ExpenseClaimDialog } from '@/components/work/expense-claim-dialog'
+import { AttachmentList } from '@/components/work/attachments'
 import { useRole } from '@/lib/role-context'
 import { cn, errorMessage, formatCurrency, formatDate } from '@/lib/utils'
 
@@ -223,15 +223,8 @@ function ClaimsCard({ claims, showEmployee, canPay }: { claims: Claim[]; showEmp
                               ))}
                             </ul>
                             {c.receipts.length > 0 && (
-                              <div className="mt-3 flex flex-wrap gap-2">
-                                {c.receipts.map((r, idx) =>
-                                  r.url ? (
-                                    <a key={idx} href={r.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 rounded-full bg-solid px-3 py-1 text-[12px] text-brand hover:underline">
-                                      <PaperclipIcon size={13} />
-                                      {r.name}
-                                    </a>
-                                  ) : null,
-                                )}
+                              <div className="mt-3">
+                                <AttachmentList attachments={c.receipts} />
                               </div>
                             )}
                             <div className="mt-4 flex flex-wrap gap-2">

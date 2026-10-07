@@ -12,7 +12,8 @@ import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { Alert, Field, Textarea } from '@/components/ui/field'
 import { EmptyState, PageSkeleton } from '@/components/ui/states'
-import { cn, errorMessage, formatCurrency, formatRelativeDate } from '@/lib/utils'
+import { AttachmentList } from '@/components/work/attachments'
+import { cn, errorMessage, formatCurrency, formatDate, formatRelativeDate } from '@/lib/utils'
 import type { Currency } from '@/lib/types'
 
 type Inbox = NonNullable<FunctionReturnType<typeof api.approvals.inbox>>
@@ -117,6 +118,31 @@ function ApprovalCard({ item, onDecline }: { item: Item; onDecline: () => void }
       </div>
 
       {item.reason && <p className="mt-3 rounded-2xl bg-muted px-3.5 py-2.5 text-[12.5px] text-fg-2">{item.reason}</p>}
+
+      {item.items.length > 0 && (
+        <ul className="mt-3 divide-y divide-line rounded-2xl bg-muted">
+          {item.items.map((line, i) => (
+            <li key={i} className="flex items-center gap-3 px-3.5 py-2 text-[12.5px]">
+              <span className="w-20 shrink-0 text-fg-3">{formatDate(line.date)}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-fg">{line.description}</span>
+                <span className="block truncate text-[11px] text-fg-3">{line.category}</span>
+              </span>
+              <span className="tabular shrink-0 font-semibold text-fg">{formatCurrency(line.amount, item.currency as Currency)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {item.kind === 'expense' && (
+        <div className="mt-3">
+          {item.attachments.length > 0 ? (
+            <AttachmentList attachments={item.attachments} />
+          ) : (
+            <p className="text-[12px] font-medium text-warning">No receipts attached.</p>
+          )}
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Badge tone="warning" dot>{item.step} step</Badge>

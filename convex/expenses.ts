@@ -36,7 +36,15 @@ async function shapeClaim(ctx: QueryCtx, c: Doc<"expenseClaims">) {
     items: c.items,
     total: c.total,
     receipts: await Promise.all(
-      c.receipts.map(async (r) => ({ name: r.name, url: await ctx.storage.getUrl(r.storageId) })),
+      c.receipts.map(async (r) => {
+        const type = (await ctx.db.system.get(r.storageId))?.contentType ?? "";
+        return {
+          name: r.name,
+          url: await ctx.storage.getUrl(r.storageId),
+          isImage: type.startsWith("image/") || /\.(png|jpe?g|gif|webp|heic)$/i.test(r.name),
+          isPdf: type.includes("pdf") || /\.pdf$/i.test(r.name),
+        };
+      }),
     ),
     // "paid" is a stage after "approved"; the stored status stays "approved".
     status: c.paidAt ? ("paid" as const) : c.status,

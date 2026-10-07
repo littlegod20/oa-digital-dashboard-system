@@ -110,6 +110,10 @@ type InboxItem = {
   onBehalfOf: string | null; // set when the CEO sees something waiting on someone else
   createdAt: number;
   reason: string;
+  /** Expense lines, so approvers can see what each amount was for. */
+  items: { date: string; category: string; description: string; amount: number }[];
+  /** Proof uploaded with the request (receipts). URLs are only returned to people who can see the request. */
+  attachments: { name: string; url: string | null; isImage: boolean; isPdf: boolean }[];
 };
 
 async function leaveItem(ctx: QueryCtx, r: Doc<"leaveRequests">, viewerId: Id<"employees">): Promise<InboxItem> {
@@ -128,6 +132,8 @@ async function leaveItem(ctx: QueryCtx, r: Doc<"leaveRequests">, viewerId: Id<"e
     onBehalfOf: step && step.approverId !== viewerId ? ((await ctx.db.get(step.approverId))?.name ?? null) : null,
     createdAt: r.createdAt,
     reason: r.reason,
+    items: [],
+    attachments: [],
   };
 }
 
@@ -146,7 +152,20 @@ async function expenseItem(ctx: QueryCtx, c: Doc<"expenseClaims">, viewerId: Id<
     step: step ? stepLabel(step.kind) : "",
     onBehalfOf: step && step.approverId !== viewerId ? ((await ctx.db.get(step.approverId))?.name ?? null) : null,
     createdAt: c.createdAt,
-    reason: c.items.map((i) => i.description).join("; "),
+    reason: "",
+    items: c.items,
+    attachments: await Promise.all(
+      c.receipts.map(async (r) => {
+        const meta = await ctx.db.system.get(r.storageId);
+        const type = meta?.contentType ?? "";
+        return {
+          name: r.name,
+          url: await ctx.storage.getUrl(r.storageId),
+          isImage: type.startsWith("image/") || /\.(png|jpe?g|gif|webp|heic)$/i.test(r.name),
+          isPdf: type.includes("pdf") || /\.pdf$/i.test(r.name),
+        };
+      }),
+    ),
   };
 }
 
