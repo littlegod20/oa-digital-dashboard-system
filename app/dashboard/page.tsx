@@ -16,6 +16,7 @@ import {
   UmbrellaIcon,
   HourglassMediumIcon,
   CheckSquareOffsetIcon,
+  ListChecksIcon,
 } from '@phosphor-icons/react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardHeader, InkCard } from '@/components/ui/card'
@@ -412,6 +413,7 @@ function BusinessOverview() {
         )}
       </div>
 
+      <MyTasksCard />
     </div>
   )
 }
@@ -515,6 +517,8 @@ function PersonalOverview() {
         </div>
       )}
 
+      <MyTasksCard showEmpty />
+
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <InkCard className="flex flex-col xl:col-span-4">
           <div className="relative z-10 flex items-center gap-4">
@@ -607,5 +611,49 @@ function WorkTile({
         <p className="truncate text-[11px] text-fg-3">{hint}</p>
       </div>
     </Link>
+  )
+}
+
+/** Open tasks assigned to the viewer across projects. Hidden when empty unless `showEmpty`. */
+function MyTasksCard({ showEmpty = false }: { showEmpty?: boolean }) {
+  const tasks = useQuery(api.tasks.mine)
+  if (!tasks || (tasks.length === 0 && !showEmpty)) return null
+  return (
+    <Card flush>
+      <div className="p-5 pb-3 md:p-6 md:pb-3">
+        <CardHeader
+          title="My tasks"
+          description={tasks.length ? `${tasks.length} open across your projects` : 'Nothing assigned to you right now'}
+          action={
+            <Link href="/dashboard/projects" className="btn btn-ghost btn-sm">
+              Projects <ArrowRightIcon size={14} weight="bold" />
+            </Link>
+          }
+          className="mb-0"
+        />
+      </div>
+      {tasks.length === 0 ? (
+        <div className="flex items-center gap-3 px-6 pb-6 text-[13px] text-fg-3">
+          <ListChecksIcon size={18} /> When someone assigns you a task, it shows up here.
+        </div>
+      ) : (
+        <ul className="divide-y divide-line border-t border-line">
+          {tasks.slice(0, 6).map((t) => (
+            <li key={t.id}>
+              <Link href={`/dashboard/projects/${t.projectId}?tab=board&task=${t.id}`} className="trow flex items-center gap-3 px-5 py-3 md:px-6">
+                <span className="w-16 shrink-0 text-[11px] font-semibold text-fg-3">{t.key}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-semibold text-fg">{t.title}</span>
+                  <span className="block truncate text-[11.5px] text-fg-3">{t.project}</span>
+                </span>
+                <span className={t.overdue ? 'text-[12px] font-semibold text-danger' : 'text-[12px] text-fg-3'}>
+                  {t.dueDate ? new Date(`${t.dueDate}T00:00:00Z`).toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short' }) : 'No due date'}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }

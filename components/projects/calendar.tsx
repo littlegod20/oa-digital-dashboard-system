@@ -1,0 +1,129 @@
+"use client";
+
+import { useState } from "react";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { cn } from "@/lib/utils";
+import { STATUS_FILL } from "./meta";
+import type { BoardTask } from "./board";
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function ymd(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Month grid with tasks placed on their due date (or start date if no due date). */
+export function ProjectCalendar({ tasks, onOpen }: { tasks: BoardTask[]; onOpen: (id: string) => void }) {
+  const now = new Date();
+  const [month, setMonth] = useState(() => new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)));
+  const today = ymd(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())));
+
+  // Grid starts on the Monday on/before the 1st and covers 6 weeks.
+  const first = new Date(month);
+  const offset = (first.getUTCDay() + 6) % 7;
+  const start = new Date(first);
+  start.setUTCDate(first.getUTCDate() - offset);
+  const days = Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(start);
+    d.setUTCDate(start.getUTCDate() + i);
+    return d;
+  });
+
+  const byDay = new Map<string, BoardTask[]>();
+  for (const t of tasks) {
+    const day = t.dueDate ?? t.startDate;
+    if (!day) continue;
+    byDay.set(day, [...(byDay.get(day) ?? []), t]);
+  }
+  const unscheduled = tasks.filter((t) => !t.dueDate && !t.startDate && t.status !== "done");
+
+  const shift = (n: number) => setMonth((m) => new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + n, 1)));
+  const label = month.toLocaleDateString("en-GB", { timeZone: "UTC", month: "long", year: "numeric" });
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[1fr_16rem]">
+      <div className="card overflow-hidden p-0">
+        <div className="flex items-center justify-between gap-3 px-5 py-4">
+          <h3 className="font-display text-[17px] font-semibold text-fg">{label}</h3>
+          <div className="flex items-center gap-1">
+            <button type="button" onClick={() => setMonth(new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)))} className="btn btn-ghost btn-sm">
+              Today
+            </button>
+            <button type="button" onClick={() => shift(-1)} className="icon-btn icon-btn-sm" aria-label="Previous month">
+              <CaretLeftIcon size={16} />
+            </button>
+            <button type="button" onClick={() => shift(1)} className="icon-btn icon-btn-sm" aria-label="Next month">
+              <CaretRightIcon size={16} />
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-7 border-t border-line text-[11px] font-semibold text-fg-3">
+          {WEEKDAYS.map((d) => (
+            <div key={d} className="px-2.5 py-2">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 border-t border-line">
+          {days.map((d, i) => {
+            const key = ymd(d);
+            const inMonth = d.getUTCMonth() === month.getUTCMonth();
+            const items = byDay.get(key) ?? [];
+            return (
+              <div
+                key={key}
+                className={cn(
+                  "min-h-[6.5rem] border-line p-1.5",
+                  i % 7 !== 6 && "border-r",
+                  i < 35 && "border-b",
+                  !inMonth && "bg-muted/60",
+                )}
+              >
+                <span
+                  className={cn(
+                    "mb-1 inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[11.5px] font-semibold",
+                    key === today ? "bg-brand-strong text-white" : inMonth ? "text-fg-2" : "text-fg-3",
+                  )}
+                >
+                  {d.getUTCDate()}
+                </span>
+                <div className="space-y-1">
+                  {items.slice(0, 3).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => onOpen(t.id)}
+                      title={`${t.key} ${t.title}`}
+                      className={cn("block w-full truncate rounded-lg px-1.5 py-1 text-left text-[11px] font-semibold text-white", t.status === "done" && "opacity-60 line-through")}
+                      style={{ background: STATUS_FILL[t.status] }}
+                    >
+                      {t.title}
+                    </button>
+                  ))}
+                  {items.length > 3 && <p className="px-1.5 text-[10.5px] font-semibold text-fg-3">+{items.length - 3} more</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <aside className="card h-fit">
+        <h3 className="font-display text-[15px] font-semibold text-fg">No date yet</h3>
+        <p className="mb-3 mt-1 text-[12px] text-fg-3">Open tasks without a start or due date.</p>
+        {unscheduled.length === 0 ? (
+          <p className="text-[12.5px] text-fg-3">Everything is scheduled.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {unscheduled.map((t) => (
+              <li key={t.id}>
+                <button type="button" onClick={() => onOpen(t.id)} className="w-full rounded-xl bg-muted px-3 py-2 text-left hover:bg-[var(--row-hover)]">
+                  <span className="text-[10.5px] font-semibold text-fg-3">{t.key}</span>
+                  <p className="truncate text-[12.5px] font-semibold text-fg">{t.title}</p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
+    </div>
+  );
+}

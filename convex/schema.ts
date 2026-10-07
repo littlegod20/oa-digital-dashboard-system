@@ -36,6 +36,18 @@ export const approvalStep = v.object({
   note: v.optional(v.string()),
 });
 
+export const projectStatus = v.union(
+  v.literal("planned"),
+  v.literal("active"),
+  v.literal("on_hold"),
+  v.literal("completed"),
+  v.literal("cancelled"),
+);
+
+export const taskStatus = v.union(v.literal("todo"), v.literal("in_progress"), v.literal("in_review"), v.literal("done"));
+
+export const taskPriority = v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"));
+
 export const requestStatus = v.union(
   v.literal("pending"),
   v.literal("approved"),
@@ -126,6 +138,76 @@ export default defineSchema({
     .index("by_employee", ["employeeId"])
     .index("by_current_approver", ["currentApproverId"])
     .index("by_status", ["status"]),
+
+  projects: defineTable({
+    name: v.string(),
+    key: v.string(), // short prefix for task numbers, e.g. "ASH" → ASH-12
+    client: v.string(),
+    description: v.string(),
+    status: projectStatus,
+    startDate: v.optional(v.string()), // YYYY-MM-DD
+    dueDate: v.optional(v.string()),
+    leadId: v.optional(v.id("employees")),
+    dealId: v.optional(v.id("deals")),
+    taskCounter: v.number(),
+    createdBy: v.id("employees"),
+    createdAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_lead", ["leadId"]),
+
+  projectMembers: defineTable({
+    projectId: v.id("projects"),
+    employeeId: v.id("employees"),
+    addedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_employee", ["employeeId"])
+    .index("by_project_employee", ["projectId", "employeeId"]),
+
+  tasks: defineTable({
+    projectId: v.id("projects"),
+    number: v.number(),
+    title: v.string(),
+    description: v.string(),
+    status: taskStatus,
+    priority: taskPriority,
+    assigneeId: v.optional(v.id("employees")),
+    startDate: v.optional(v.string()),
+    dueDate: v.optional(v.string()),
+    order: v.number(), // position within its board column
+    createdBy: v.id("employees"),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_assignee", ["assigneeId"]),
+
+  taskComments: defineTable({
+    taskId: v.id("tasks"),
+    authorId: v.id("employees"),
+    body: v.string(),
+    createdAt: v.number(),
+  }).index("by_task", ["taskId"]),
+
+  projectDocuments: defineTable({
+    projectId: v.id("projects"),
+    name: v.string(),
+    // Either an uploaded file or an external link (e.g. a Google Doc).
+    storageId: v.optional(v.id("_storage")),
+    url: v.optional(v.string()),
+    size: v.optional(v.number()),
+    contentType: v.optional(v.string()),
+    uploadedBy: v.id("employees"),
+    createdAt: v.number(),
+  }).index("by_project", ["projectId"]),
+
+  projectActivity: defineTable({
+    projectId: v.id("projects"),
+    actorId: v.id("employees"),
+    text: v.string(),
+    createdAt: v.number(),
+  }).index("by_project", ["projectId"]),
 
   // In-app notifications (the bell).
   notifications: defineTable({

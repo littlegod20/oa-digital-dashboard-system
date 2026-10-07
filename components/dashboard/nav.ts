@@ -3,6 +3,7 @@ import {
   AddressBookIcon,
   CalendarCheckIcon,
   CheckSquareOffsetIcon,
+  FolderSimpleIcon,
   GearSixIcon,
   ReceiptIcon,
   KanbanIcon,
@@ -34,6 +35,7 @@ export const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "Work",
     items: [
+      { href: "/dashboard/projects",  label: "Projects",  icon: FolderSimpleIcon,      description: "Delivery projects, tasks & docs" },
       { href: "/dashboard/leave",     label: "Leave",     icon: CalendarCheckIcon,     description: "Request time off, see who's away" },
       { href: "/dashboard/expenses",  label: "Expenses",  icon: ReceiptIcon,           description: "Claim back work spending" },
       { href: "/dashboard/approvals", label: "Approvals", icon: CheckSquareOffsetIcon, description: "Requests waiting on you", badge: "approvals" },

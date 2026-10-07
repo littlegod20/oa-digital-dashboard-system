@@ -24,6 +24,8 @@ import type * as notifications from "../notifications.js";
 import type * as password from "../password.js";
 import type * as people from "../people.js";
 import type * as permissions from "../permissions.js";
+import type * as projects from "../projects.js";
+import type * as tasks from "../tasks.js";
 import type * as transactions from "../transactions.js";
 import type * as users from "../users.js";
 
@@ -50,6 +52,8 @@ declare const fullApi: ApiFromModules<{
   password: typeof password;
   people: typeof people;
   permissions: typeof permissions;
+  projects: typeof projects;
+  tasks: typeof tasks;
   transactions: typeof transactions;
   users: typeof users;
 }>;
