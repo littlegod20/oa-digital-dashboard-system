@@ -10,7 +10,6 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Segmented } from '@/components/ui/segmented'
 import { EmptyState, Skeleton } from '@/components/ui/states'
 import { PHASE_META } from '@/lib/types'
-import type { PipelinePhase } from '@/lib/types'
 import { AddDealModal, type DealDraft } from '@/components/ui/add-deal-modal'
 import { ConfirmDialog } from '@/components/ui/modal'
 

@@ -46,11 +46,11 @@ export const insertCredentialUser = internalMutation({
 
 /**
  * Writes a Better Auth user + email/password account and the app profile.
- * Idempotent per email, so the Postgres import can be re-run.
+ * Idempotent per email: re-running for an existing email only updates the profile.
  */
-export async function insertCredentialUserImpl(
+async function insertCredentialUserImpl(
   ctx: MutationCtx,
-  args: { email: string; name: string; role: "management" | "sales"; passwordHash: string; createdAt?: number },
+  args: { email: string; name: string; role: "management" | "sales"; passwordHash: string },
 ) {
   const email = args.email.trim().toLowerCase();
   const now = Date.now();
@@ -71,7 +71,7 @@ export async function insertCredentialUserImpl(
           name: args.name,
           email,
           emailVerified: true,
-          createdAt: args.createdAt ?? now,
+          createdAt: now,
           updatedAt: now,
         },
       },
@@ -85,7 +85,7 @@ export async function insertCredentialUserImpl(
           providerId: "credential",
           userId,
           password: args.passwordHash,
-          createdAt: args.createdAt ?? now,
+          createdAt: now,
           updatedAt: now,
         },
       },

@@ -47,11 +47,8 @@ export default defineSchema({
     notes: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
-    // Primary key from the old Postgres database, kept so the import can be re-run safely.
-    legacyId: v.optional(v.string()),
   })
-    .index("by_updatedAt", ["updatedAt"])
-    .index("by_legacyId", ["legacyId"]),
+    .index("by_updatedAt", ["updatedAt"]),
 
   transactions: defineTable({
     type: transactionType,
@@ -62,10 +59,8 @@ export default defineSchema({
     category: v.string(),
     date: v.string(), // YYYY-MM-DD
     orderId: v.optional(v.string()),
-    legacyId: v.optional(v.string()),
   })
-    .index("by_date", ["date"])
-    .index("by_legacyId", ["legacyId"]),
+    .index("by_date", ["date"]),
 
   contacts: defineTable({
     name: v.string(),
@@ -75,10 +70,8 @@ export default defineSchema({
     notes: v.optional(v.string()),
     tags: v.array(v.string()),
     createdAt: v.number(),
-    legacyId: v.optional(v.string()),
   })
-    .index("by_name", ["name"])
-    .index("by_legacyId", ["legacyId"]),
+    .index("by_name", ["name"]),
 
   teamMembers: defineTable({
     name: v.string(),
@@ -88,8 +81,6 @@ export default defineSchema({
     avatar: v.optional(v.string()),
     activeDeals: v.number(),
     totalRevenue: v.number(),
-    legacyId: v.optional(v.string()),
   })
-    .index("by_name", ["name"])
-    .index("by_legacyId", ["legacyId"]),
+    .index("by_name", ["name"]),
 });

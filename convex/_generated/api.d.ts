@@ -11,9 +11,9 @@
 import type * as auth from "../auth.js";
 import type * as contacts from "../contacts.js";
 import type * as deals from "../deals.js";
+import type * as email from "../email.js";
 import type * as http from "../http.js";
 import type * as lib from "../lib.js";
-import type * as migrations from "../migrations.js";
 import type * as password from "../password.js";
 import type * as team from "../team.js";
 import type * as transactions from "../transactions.js";
@@ -29,9 +29,9 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   contacts: typeof contacts;
   deals: typeof deals;
+  email: typeof email;
   http: typeof http;
   lib: typeof lib;
-  migrations: typeof migrations;
   password: typeof password;
   team: typeof team;
   transactions: typeof transactions;

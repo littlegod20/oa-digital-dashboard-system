@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
   return (
     <AuthShell
       title="Reset your password"
-      subtitle={submitted ? "Request received." : "Enter your email and we'll generate a reset link."}
+      subtitle={submitted ? "Check your email." : "Enter your email and we'll send you a reset link."}
       footer={
         <Link href="/login" className="inline-flex items-center gap-1.5 font-semibold text-fg-2 hover:text-fg">
           <ArrowLeftIcon size={15} weight="bold" />
@@ -55,13 +55,13 @@ export default function ForgotPasswordPage() {
             />
           </Field>
           <button type="submit" disabled={loading} className="btn btn-primary btn-lg w-full">
-            {loading ? "Generating link…" : "Send reset link"}
+            {loading ? "Sending…" : "Send reset link"}
           </button>
         </form>
       ) : (
         <Alert tone="success" icon={CheckCircleIcon}>
-          If that email belongs to an account, a reset link valid for 1 hour has been generated. Your administrator
-          will send it to you.
+          If that email belongs to an account, we&apos;ve sent it a link to reset your password. The link expires in
+          1 hour, so check your inbox (and spam folder).
         </Alert>
       )}
     </AuthShell>
