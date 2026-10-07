@@ -83,7 +83,7 @@ export const mine = query({
     if (!viewer) return null;
     const rows = await ctx.db.query("expenseClaims").withIndex("by_employee", (q) => q.eq("employeeId", viewer._id)).order("desc").collect();
     const claims = await Promise.all(rows.map((c) => shapeClaim(ctx, c)));
-    return { claims, summary: summarise(claims), categories: EXPENSE_CATEGORIES, autoApproved: viewer.accessRole === "ceo", route: await previewRoute(ctx, viewer) };
+    return { claims, summary: summarise(claims), categories: EXPENSE_CATEGORIES, autoApproved: viewer.accessRole === "ceo", route: await previewRoute(ctx, viewer, "ceo_only") };
   },
 });
 
@@ -128,7 +128,8 @@ export const submit = mutation({
     const items = args.items.map((i) => ({ ...i, description: i.description.trim(), amount: Math.round(i.amount * 100) / 100 }));
     const total = Math.round(items.reduce((s, i) => s + i.amount, 0) * 100) / 100;
 
-    const chain = await buildChain(ctx, viewer);
+    // Expense claims go straight to the CEO (no line manager step).
+    const chain = await buildChain(ctx, viewer, "ceo_only");
     const id = await ctx.db.insert("expenseClaims", {
       employeeId: viewer._id,
       title,

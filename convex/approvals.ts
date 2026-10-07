@@ -6,8 +6,9 @@ import { notify } from "./notifications";
 import type { approvalStep } from "./schema";
 
 /*
- * Approval chain shared by leave and expense claims:
- *   line manager  →  CEO
+ * Approval chains:
+ *   "line_manager_then_ceo" (leave and most requests):  line manager  →  CEO
+ *   "ceo_only" (expense claims):                         CEO
  * - The CEO's own requests need no approval.
  * - If the line manager is the CEO, there is a single CEO step.
  * - The CEO may decide any pending request at any step (so nothing gets stuck if a
@@ -15,6 +16,7 @@ import type { approvalStep } from "./schema";
  */
 
 export type Step = Infer<typeof approvalStep>;
+export type Route = "line_manager_then_ceo" | "ceo_only";
 type Chain = { steps: Step[]; status: "pending" | "approved"; currentApproverId?: Id<"employees"> };
 
 export async function findCeo(ctx: QueryCtx) {
@@ -22,23 +24,29 @@ export async function findCeo(ctx: QueryCtx) {
 }
 
 /** The approval steps for a new request by `employee`. */
-export async function buildChain(ctx: QueryCtx, employee: Doc<"employees">): Promise<Chain> {
+export async function buildChain(ctx: QueryCtx, employee: Doc<"employees">, route: Route = "line_manager_then_ceo"): Promise<Chain> {
   if (employee.accessRole === "ceo") return { steps: [], status: "approved" };
   const ceo = await findCeo(ctx);
   const steps: Step[] = [];
-  const manager = employee.lineManagerId ? await ctx.db.get(employee.lineManagerId) : null;
-  if (manager && manager.status === "active" && manager._id !== ceo?._id) {
-    steps.push({ approverId: manager._id, kind: "line_manager", status: "pending" });
+  if (route === "line_manager_then_ceo") {
+    const manager = employee.lineManagerId ? await ctx.db.get(employee.lineManagerId) : null;
+    if (manager && manager.status === "active" && manager._id !== ceo?._id) {
+      steps.push({ approverId: manager._id, kind: "line_manager", status: "pending" });
+    }
   }
   if (ceo) steps.push({ approverId: ceo._id, kind: "ceo", status: "pending" });
-  if (steps.length === 0) throw new ConvexError("There's nobody to approve this yet. Ask HR to set your line manager.");
+  if (steps.length === 0) {
+    throw new ConvexError(
+      route === "ceo_only" ? "There's no CEO account to approve this yet." : "There's nobody to approve this yet. Ask HR to set your line manager.",
+    );
+  }
   return { steps, status: "pending", currentApproverId: steps[0].approverId };
 }
 
 /** Names of who a new request from `employee` would go to, in order (empty for the CEO). */
-export async function previewRoute(ctx: QueryCtx, employee: Doc<"employees">) {
+export async function previewRoute(ctx: QueryCtx, employee: Doc<"employees">, route: Route = "line_manager_then_ceo") {
   try {
-    const { steps } = await buildChain(ctx, employee);
+    const { steps } = await buildChain(ctx, employee, route);
     return Promise.all(steps.map(async (s) => (await ctx.db.get(s.approverId))?.name ?? "Unknown"));
   } catch {
     return [];

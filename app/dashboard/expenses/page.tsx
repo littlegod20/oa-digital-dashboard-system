@@ -52,7 +52,7 @@ function ExpensesContent() {
     <PageHeader
       eyebrow="Money back"
       title="Expenses"
-      description="Claim back what you spent for work. Your line manager approves, then the CEO, then it's paid."
+      description="Claim back what you spent for work. The CEO approves it, then it's paid."
       actions={
         <button onClick={() => setNewOpen(true)} className="btn btn-primary" disabled={!mine}>
           <PlusIcon size={17} weight="bold" />

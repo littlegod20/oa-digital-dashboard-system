@@ -153,3 +153,35 @@ export const phase2Setup = internalMutation({
     return { seeded: types.length };
   },
 });
+
+/**
+ * ONE-OFF: expense claims now go straight to the CEO. Claims still waiting on a line
+ * manager skip that step and move to the CEO. Idempotent.
+ * `npx convex run migrations:expensesDirectToCeo` (add `--prod` for production).
+ */
+export const expensesDirectToCeo = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const pending = await ctx.db.query("expenseClaims").withIndex("by_status", (q) => q.eq("status", "pending")).collect();
+    let rerouted = 0;
+    for (const c of pending) {
+      const current = c.steps.find((s) => s.status === "pending");
+      if (!current || current.kind !== "line_manager") continue;
+      const steps = c.steps.map((s) => (s.kind === "line_manager" && s.status === "pending" ? { ...s, status: "skipped" as const } : s));
+      const ceoStep = steps.find((s) => s.kind === "ceo" && s.status === "pending");
+      if (!ceoStep) continue;
+      await ctx.db.patch(c._id, { steps, currentApproverId: ceoStep.approverId });
+      const who = await ctx.db.get(c.employeeId);
+      await ctx.db.insert("notifications", {
+        employeeId: ceoStep.approverId,
+        title: "New request to approve",
+        body: `${who?.name ?? "Someone"} submitted an expense claim "${c.title}" (${c.currency} ${c.total.toFixed(2)}).`,
+        href: "/dashboard/approvals",
+        tone: "warning",
+        createdAt: Date.now(),
+      });
+      rerouted++;
+    }
+    return { rerouted };
+  },
+});
