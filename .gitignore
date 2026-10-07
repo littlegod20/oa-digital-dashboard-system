@@ -41,6 +41,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-convex-backup.zip
+# Convex data exports (contain password hashes)
+convex-backup*.zip
+
+# OpenNext / Wrangler
 .open-next
 .wrangler
+.dev.vars*
