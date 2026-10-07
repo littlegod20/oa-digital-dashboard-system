@@ -56,7 +56,7 @@ export default function ProjectsPage() {
   const active = projects.filter((p) => p.status === 'active').length
   const completed = projects.filter((p) => p.status === 'completed').length
   const openTasks = projects.reduce((s, p) => s + p.tasks.total - p.tasks.done, 0)
-  const overdueTasks = projects.reduce((s, p) => s + p.tasks.overdue, 0)
+  const overdueTasks = projects.reduce((s, p) => s + p.tasks.overdue, 0) 
 
   return (
     <div className="space-y-6">
