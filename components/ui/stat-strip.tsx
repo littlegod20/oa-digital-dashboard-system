@@ -14,8 +14,15 @@ export type Stat = {
 
 /** One frosted card holding several headline numbers, each with a round icon. */
 export function StatStrip({ stats, className }: { stats: Stat[]; className?: string }) {
+  const four = stats.length === 4;
   return (
-    <div className={cn("card grid grid-cols-1 divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0", className)}>
+    <div
+      className={cn(
+        "card grid grid-cols-1 divide-y divide-line",
+        four ? "sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-4 xl:divide-x" : "sm:grid-cols-3 sm:divide-x sm:divide-y-0",
+        className,
+      )}
+    >
       {stats.map((s) => (
         <StatItem key={s.label} {...s} />
       ))}

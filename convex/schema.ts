@@ -26,6 +26,23 @@ export const role = v.union(v.literal("management"), v.literal("sales"));
 
 export const accessRole = v.union(...ACCESS_ROLES.map((r) => v.literal(r)));
 
+/** One sign-off in an approval chain (leave and expense claims share this shape). */
+export const approvalStep = v.object({
+  approverId: v.id("employees"),
+  kind: v.union(v.literal("line_manager"), v.literal("ceo")),
+  status: v.union(v.literal("pending"), v.literal("approved"), v.literal("declined"), v.literal("skipped")),
+  decidedAt: v.optional(v.number()),
+  decidedBy: v.optional(v.id("employees")), // differs from approverId when the CEO decides on someone's behalf
+  note: v.optional(v.string()),
+});
+
+export const requestStatus = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("declined"),
+  v.literal("withdrawn"),
+);
+
 export default defineSchema({
   departments: defineTable({
     name: v.string(),
@@ -43,6 +60,7 @@ export default defineSchema({
     accessRole,
     userId: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("disabled")),
+    annualLeaveDays: v.optional(v.number()), // overrides the company default (15)
     createdAt: v.number(),
   })
     .index("by_userId", ["userId"])
@@ -61,6 +79,64 @@ export default defineSchema({
   })
     .index("by_tokenHash", ["tokenHash"])
     .index("by_employee", ["employeeId"]),
+
+  leaveTypes: defineTable({
+    name: v.string(),
+    countsAgainstAllowance: v.boolean(), // true for Annual: deducted from the yearly allowance
+    paid: v.boolean(),
+    active: v.boolean(),
+    order: v.number(),
+  }).index("by_order", ["order"]),
+
+  leaveRequests: defineTable({
+    employeeId: v.id("employees"),
+    leaveTypeId: v.id("leaveTypes"),
+    startDate: v.string(), // YYYY-MM-DD
+    endDate: v.string(),
+    days: v.number(), // working days (Mon–Fri)
+    reason: v.string(),
+    status: requestStatus,
+    steps: v.array(approvalStep),
+    currentApproverId: v.optional(v.id("employees")),
+    createdAt: v.number(),
+    decidedAt: v.optional(v.number()),
+  })
+    .index("by_employee", ["employeeId"])
+    .index("by_current_approver", ["currentApproverId"])
+    .index("by_status", ["status"]),
+
+  expenseClaims: defineTable({
+    employeeId: v.id("employees"),
+    title: v.string(),
+    currency,
+    items: v.array(
+      v.object({ date: v.string(), category: v.string(), description: v.string(), amount: v.number() }),
+    ),
+    total: v.number(),
+    receipts: v.array(v.object({ storageId: v.id("_storage"), name: v.string() })),
+    status: requestStatus,
+    steps: v.array(approvalStep),
+    currentApproverId: v.optional(v.id("employees")),
+    paidAt: v.optional(v.number()),
+    paidBy: v.optional(v.id("employees")),
+    transactionId: v.optional(v.id("transactions")),
+    createdAt: v.number(),
+    decidedAt: v.optional(v.number()),
+  })
+    .index("by_employee", ["employeeId"])
+    .index("by_current_approver", ["currentApproverId"])
+    .index("by_status", ["status"]),
+
+  // In-app notifications (the bell).
+  notifications: defineTable({
+    employeeId: v.id("employees"),
+    title: v.string(),
+    body: v.string(),
+    href: v.string(),
+    tone: v.union(v.literal("info"), v.literal("success"), v.literal("warning"), v.literal("danger")),
+    readAt: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_employee", ["employeeId"]),
 
   // DEPRECATED: replaced by `employees`. Kept until production has migrated.
   profiles: defineTable({

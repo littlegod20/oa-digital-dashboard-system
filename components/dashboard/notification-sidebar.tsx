@@ -2,23 +2,44 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
-import { ArrowRightIcon, BellSimpleIcon, HandCoinsIcon, XIcon } from "@phosphor-icons/react";
+import { useMutation, useQuery } from "convex/react";
+import {
+  ArrowRightIcon,
+  BellSimpleIcon,
+  CheckCircleIcon,
+  HandCoinsIcon,
+  HourglassMediumIcon,
+  InfoIcon,
+  XCircleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { api } from "@/convex/_generated/api";
 import { useRole } from "@/lib/role-context";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, formatRelativeDate } from "@/lib/utils";
 import { TransactionRow } from "@/components/dashboard/widgets";
 import { EmptyState } from "@/components/ui/states";
 
-/** What the bell shows: deal follow-ups (pipeline) and recent money movement (finance). */
+const TONE_ICON = { success: CheckCircleIcon, danger: XCircleIcon, warning: HourglassMediumIcon, info: InfoIcon } as const;
+
+/**
+ * What the bell shows: the viewer's notifications (approvals and decisions), deal
+ * follow-ups (pipeline) and recent money movement (finance). Only unread notifications
+ * count towards the badge.
+ */
 export function useNotifications() {
   const { can } = useRole();
+  const mine = useQuery(api.notifications.mine);
   const deals = useQuery(api.deals.list, can("pipeline.view") ? {} : "skip");
   const transactions = useQuery(api.transactions.list, can("finance.view") ? {} : "skip");
   const followUps = (deals ?? [])
     .filter((d) => d.value - d.paid > 0 && d.phase !== "done" && d.phase !== "hold" && d.nextAction)
     .slice(0, 5);
-  return { followUps, transactions: (transactions ?? []).slice(0, 5), count: followUps.length };
+  return {
+    notifications: mine?.items ?? [],
+    followUps,
+    transactions: (transactions ?? []).slice(0, 5),
+    count: mine?.unread ?? 0,
+  };
 }
 
 type NotificationSidebarProps = {
@@ -57,9 +78,18 @@ export function NotificationSidebar({ open, onClose }: NotificationSidebarProps)
 }
 
 function PanelBody({ onClose }: { onClose: () => void }) {
-  const { followUps, transactions } = useNotifications();
+  const { notifications, followUps, transactions, count } = useNotifications();
+  const markAllRead = useMutation(api.notifications.markAllRead);
 
-  if (followUps.length === 0 && transactions.length === 0) {
+  // Opening the panel counts as reading what's in it.
+  useEffect(() => {
+    if (count > 0) {
+      const t = setTimeout(() => void markAllRead(), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [count, markAllRead]);
+
+  if (notifications.length === 0 && followUps.length === 0 && transactions.length === 0) {
     return (
       <EmptyState
         icon={BellSimpleIcon}
@@ -72,6 +102,36 @@ function PanelBody({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="min-h-0 flex-1 space-y-7 overflow-y-auto px-6 pb-6">
+      {notifications.length > 0 && (
+        <section>
+          <h3 className="eyebrow mb-3">Updates</h3>
+          <ul className="space-y-1">
+            {notifications.map((n) => {
+              const IconCmp = TONE_ICON[n.tone];
+              return (
+                <li key={n.id}>
+                  <Link
+                    href={n.href}
+                    onClick={onClose}
+                    className="-mx-2 flex items-start gap-3 rounded-2xl p-2 transition-colors hover:bg-muted"
+                  >
+                    <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-full", `badge-${n.tone}`)}>
+                      <IconCmp size={18} weight="duotone" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn("text-[13px] leading-snug text-fg", n.read ? "font-medium" : "font-semibold")}>{n.title}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-fg-2">{n.body}</p>
+                      <p className="mt-1 text-[11px] text-fg-3">{formatRelativeDate(new Date(n.createdAt).toISOString())}</p>
+                    </div>
+                    {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-peach" aria-label="Unread" />}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {followUps.length > 0 && (
         <section>
           <h3 className="eyebrow mb-3">Follow-ups</h3>

@@ -8,14 +8,19 @@
  * @module
  */
 
+import type * as approvals from "../approvals.js";
 import type * as auth from "../auth.js";
 import type * as contacts from "../contacts.js";
+import type * as dates from "../dates.js";
 import type * as deals from "../deals.js";
 import type * as email from "../email.js";
+import type * as expenses from "../expenses.js";
 import type * as http from "../http.js";
 import type * as invites from "../invites.js";
+import type * as leave from "../leave.js";
 import type * as lib from "../lib.js";
 import type * as migrations from "../migrations.js";
+import type * as notifications from "../notifications.js";
 import type * as password from "../password.js";
 import type * as people from "../people.js";
 import type * as permissions from "../permissions.js";
@@ -29,14 +34,19 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  approvals: typeof approvals;
   auth: typeof auth;
   contacts: typeof contacts;
+  dates: typeof dates;
   deals: typeof deals;
   email: typeof email;
+  expenses: typeof expenses;
   http: typeof http;
   invites: typeof invites;
+  leave: typeof leave;
   lib: typeof lib;
   migrations: typeof migrations;
+  notifications: typeof notifications;
   password: typeof password;
   people: typeof people;
   permissions: typeof permissions;

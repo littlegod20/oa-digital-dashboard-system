@@ -13,6 +13,9 @@ import {
   ReceiptIcon,
   TrendUpIcon,
   UsersThreeIcon,
+  UmbrellaIcon,
+  HourglassMediumIcon,
+  CheckSquareOffsetIcon,
 } from '@phosphor-icons/react'
 import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardHeader, InkCard } from '@/components/ui/card'
@@ -123,6 +126,7 @@ function BusinessOverview() {
   const dealsData = useQuery(api.deals.list)
   const txData = useQuery(api.transactions.list)
   const directory = useQuery(api.people.directory)
+  const waiting = useQuery(api.approvals.waitingCount) ?? 0
   const loading = dealsData === undefined || txData === undefined || directory === undefined
   const deals: Deal[] = dealsData ?? NO_DEALS
   const transactions: Transaction[] = txData ?? NO_TRANSACTIONS
@@ -201,6 +205,12 @@ function BusinessOverview() {
       }
       actions={
         <>
+          {waiting > 0 && (
+            <Link href="/dashboard/approvals" className="btn btn-secondary">
+              <CheckSquareOffsetIcon size={17} className="text-peach" />
+              {waiting} waiting on you
+            </Link>
+          )}
           <Link href="/dashboard/pipeline" className="btn btn-secondary">
             <KanbanIcon size={17} />
             Pipeline
@@ -459,6 +469,9 @@ function FollowUpCard({ deals }: { deals: Deal[] }) {
 function PersonalOverview() {
   const { user } = useRole()
   const directory = useQuery(api.people.directory)
+  const leave = useQuery(api.leave.mine)
+  const expenses = useQuery(api.expenses.mine)
+  const waiting = useQuery(api.approvals.waitingCount) ?? 0
   const firstName = user?.name?.split(' ')[0] ?? 'there'
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -466,7 +479,7 @@ function PersonalOverview() {
     <PageHeader
       eyebrow={today}
       title={`${greeting()}, ${firstName}`}
-      description="Your profile, your team and who to go to for what."
+      description="Your time off, your claims, your team and who to go to for what."
       actions={
         <Link href="/dashboard/team" className="btn btn-primary">
           <UsersThreeIcon size={17} weight="bold" />
@@ -492,6 +505,15 @@ function PersonalOverview() {
   return (
     <div className="space-y-6">
       {header}
+
+      {leave && expenses && (
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <WorkTile href="/dashboard/leave" icon={UmbrellaIcon} label="Leave days left" value={String(leave.balance.remaining)} hint={`of ${leave.balance.entitlement} this year`} />
+          <WorkTile href="/dashboard/leave" icon={HourglassMediumIcon} label="Leave awaiting approval" value={String(leave.balance.pendingRequests)} hint="requests" />
+          <WorkTile href="/dashboard/expenses" icon={ReceiptIcon} label="Claims in approval" value={String(expenses.summary.inApproval.count)} hint={formatCurrency(expenses.summary.inApproval.total, 'GHS')} />
+          <WorkTile href="/dashboard/approvals" icon={CheckSquareOffsetIcon} label="Waiting on you" value={String(waiting)} hint="approvals" highlight={waiting > 0} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <InkCard className="flex flex-col xl:col-span-4">
@@ -550,5 +572,40 @@ function PersonalOverview() {
         </ul>
       </Card>
     </div>
+  )
+}
+
+function WorkTile({
+  href,
+  icon: IconCmp,
+  label,
+  value,
+  hint,
+  highlight,
+}: {
+  href: string
+  icon: typeof UmbrellaIcon
+  label: string
+  value: string
+  hint: string
+  highlight?: boolean
+}) {
+  return (
+    <Link href={href} className="card flex items-center gap-3.5 p-4 transition-shadow hover:shadow-pop md:p-5">
+      <div
+        className={
+          highlight
+            ? 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-peach text-white'
+            : 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-solid text-brand shadow-[0_0_0_1px_var(--divider)]'
+        }
+      >
+        <IconCmp size={20} weight="duotone" />
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-[11.5px] font-medium text-fg-3">{label}</p>
+        <p className="tabular font-display text-[22px] font-semibold leading-tight text-fg">{value}</p>
+        <p className="truncate text-[11px] text-fg-3">{hint}</p>
+      </div>
+    </Link>
   )
 }

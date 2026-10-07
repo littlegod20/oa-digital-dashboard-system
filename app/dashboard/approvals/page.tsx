@@ -1,0 +1,219 @@
+'use client'
+
+import { useState } from 'react'
+import { useMutation, useQuery } from 'convex/react'
+import { CalendarBlankIcon, CheckIcon, CheckSquareOffsetIcon, ReceiptIcon, XIcon, WarningCircleIcon } from '@phosphor-icons/react'
+import { api } from '@/convex/_generated/api'
+import type { FunctionReturnType } from 'convex/server'
+import { PageHeader } from '@/components/ui/page-header'
+import { Segmented } from '@/components/ui/segmented'
+import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Modal } from '@/components/ui/modal'
+import { Alert, Field, Textarea } from '@/components/ui/field'
+import { EmptyState, PageSkeleton } from '@/components/ui/states'
+import { cn, errorMessage, formatCurrency, formatRelativeDate } from '@/lib/utils'
+import type { Currency } from '@/lib/types'
+
+type Inbox = NonNullable<FunctionReturnType<typeof api.approvals.inbox>>
+type Item = Inbox['waiting'][number]
+type Recent = Inbox['recent'][number]
+
+export default function ApprovalsPage() {
+  const inbox = useQuery(api.approvals.inbox)
+  const [tab, setTab] = useState<'waiting' | 'others' | 'recent'>('waiting')
+  const [declining, setDeclining] = useState<Item | null>(null)
+
+  if (!inbox) {
+    return (
+      <div className="space-y-6">
+        <PageHeader eyebrow="Decisions" title="Approvals" />
+        <PageSkeleton rows={1} />
+      </div>
+    )
+  }
+
+  const tabs = [
+    { value: 'waiting' as const, label: 'Waiting on you', count: inbox.waiting.length },
+    ...(inbox.others.length ? [{ value: 'others' as const, label: 'Waiting on others', count: inbox.others.length }] : []),
+    { value: 'recent' as const, label: 'Recently decided', count: inbox.recent.length },
+  ]
+  const list = tab === 'others' ? inbox.others : inbox.waiting
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Decisions"
+        title="Approvals"
+        description={inbox.waiting.length ? `${inbox.waiting.length} request${inbox.waiting.length !== 1 ? 's' : ''} waiting on you.` : 'Nothing is waiting on you.'}
+      />
+
+      <Segmented label="Approvals" options={tabs} value={tab} onChange={setTab} />
+
+      {tab === 'recent' ? (
+        <RecentList items={inbox.recent} />
+      ) : list.length === 0 ? (
+        <div className="card">
+          <EmptyState icon={CheckSquareOffsetIcon} title="Your queue is clear" description="Leave requests and expense claims that need your decision show up here." />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {list.map((item) => (
+            <ApprovalCard key={`${item.kind}-${item.id}`} item={item} onDecline={() => setDeclining(item)} />
+          ))}
+        </div>
+      )}
+
+      <DeclineDialog item={declining} onClose={() => setDeclining(null)} />
+    </div>
+  )
+}
+
+function KindIcon({ kind }: { kind: Item['kind'] }) {
+  const Icon = kind === 'leave' ? CalendarBlankIcon : ReceiptIcon
+  return (
+    <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full', kind === 'leave' ? 'badge-info' : 'badge-violet')}>
+      <Icon size={19} weight="duotone" />
+    </div>
+  )
+}
+
+function ApprovalCard({ item, onDecline }: { item: Item; onDecline: () => void }) {
+  const decide = useMutation(api.approvals.decide)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function approve() {
+    setBusy(true)
+    setError('')
+    try {
+      await decide({ kind: item.kind, id: item.id, decision: 'approve' })
+    } catch (err) {
+      setError(errorMessage(err))
+      setBusy(false)
+    }
+  }
+
+  return (
+    <article className="card flex flex-col p-5">
+      <div className="flex items-start gap-3.5">
+        <KindIcon kind={item.kind} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-[16px] font-semibold text-fg">{item.title}</p>
+          <p className="mt-0.5 text-[12.5px] text-fg-2">{item.detail}</p>
+        </div>
+        {item.amount !== null && (
+          <p className="tabular shrink-0 font-display text-[18px] font-semibold text-fg">{formatCurrency(item.amount, item.currency as Currency)}</p>
+        )}
+      </div>
+
+      <div className="mt-4 flex items-center gap-2.5">
+        <Avatar name={item.requester} size={32} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-semibold text-fg">{item.requester}</p>
+          <p className="truncate text-[11.5px] text-fg-3">{item.requesterTitle}</p>
+        </div>
+        <span className="text-[11.5px] text-fg-3">{formatRelativeDate(new Date(item.createdAt).toISOString())}</span>
+      </div>
+
+      {item.reason && <p className="mt-3 rounded-2xl bg-muted px-3.5 py-2.5 text-[12.5px] text-fg-2">{item.reason}</p>}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Badge tone="warning" dot>{item.step} step</Badge>
+        {item.onBehalfOf && <Badge tone="neutral">With {item.onBehalfOf}</Badge>}
+      </div>
+
+      {error && <div className="mt-3"><Alert icon={WarningCircleIcon}>{error}</Alert></div>}
+
+      <div className="flex-1" />
+      <div className="mt-4 flex justify-end gap-2 border-t border-line pt-4">
+        <button onClick={onDecline} disabled={busy} className="btn btn-secondary">
+          <XIcon size={15} weight="bold" />
+          Decline
+        </button>
+        <button onClick={approve} disabled={busy} className="btn btn-primary">
+          <CheckIcon size={15} weight="bold" />
+          {busy ? 'Approving…' : item.onBehalfOf ? 'Approve on their behalf' : 'Approve'}
+        </button>
+      </div>
+    </article>
+  )
+}
+
+function DeclineDialog({ item, onClose }: { item: Item | null; onClose: () => void }) {
+  return (
+    <Modal open={Boolean(item)} onClose={onClose} title={`Decline ${item?.requester ?? ''}'s request?`} description="They'll see your reason." icon={XIcon} width="30rem">
+      {item && <DeclineForm key={item.id} item={item} onClose={onClose} />}
+    </Modal>
+  )
+}
+
+function DeclineForm({ item, onClose }: { item: Item; onClose: () => void }) {
+  const decide = useMutation(api.approvals.decide)
+  const [note, setNote] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={async (e) => {
+        e.preventDefault()
+        setBusy(true)
+        setError('')
+        try {
+          await decide({ kind: item.kind, id: item.id, decision: 'decline', note })
+          onClose()
+        } catch (err) {
+          setError(errorMessage(err))
+          setBusy(false)
+        }
+      }}
+    >
+      {error && <Alert icon={WarningCircleIcon}>{error}</Alert>}
+      <p className="text-[13px] text-fg-2">
+        {item.title} · {item.detail}
+      </p>
+      <Field label="Reason">
+        <Textarea required autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. We're short-staffed that week. Could you move it by a week?" />
+      </Field>
+      <div className="-mx-6 flex justify-end gap-2 border-t border-line px-6 pt-5">
+        <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
+        <button type="submit" disabled={busy} className="btn btn-danger">{busy ? 'Declining…' : 'Decline'}</button>
+      </div>
+    </form>
+  )
+}
+
+function RecentList({ items }: { items: Recent[] }) {
+  if (items.length === 0) {
+    return (
+      <div className="card">
+        <EmptyState icon={CheckSquareOffsetIcon} title="Nothing decided yet" description="Requests you approve or decline will be listed here." />
+      </div>
+    )
+  }
+  return (
+    <div className="card overflow-hidden">
+      <ul className="divide-y divide-line">
+        {items.map((i) => (
+          <li key={`${i.kind}-${i.id}`} className="flex items-center gap-3.5 px-5 py-3.5 md:px-6">
+            <KindIcon kind={i.kind} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13.5px] font-semibold text-fg">
+                {i.requester} · {i.title}
+              </p>
+              <p className="truncate text-[12px] text-fg-3">{i.detail}</p>
+            </div>
+            {i.amount !== null && <span className="tabular hidden text-[13px] font-semibold text-fg sm:inline">{formatCurrency(i.amount, i.currency as Currency)}</span>}
+            <Badge tone={i.outcome.decision === 'approved' ? 'success' : 'danger'} dot>
+              {i.outcome.decision === 'approved' ? 'Approved' : 'Declined'}
+            </Badge>
+            <span className="hidden w-24 text-right text-[11.5px] text-fg-3 md:inline">
+              {i.outcome.at ? formatRelativeDate(new Date(i.outcome.at).toISOString()) : ''}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}

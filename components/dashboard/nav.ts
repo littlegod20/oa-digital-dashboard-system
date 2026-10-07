@@ -1,7 +1,10 @@
 import type { Icon } from "@phosphor-icons/react";
 import {
   AddressBookIcon,
+  CalendarCheckIcon,
+  CheckSquareOffsetIcon,
   GearSixIcon,
+  ReceiptIcon,
   KanbanIcon,
   SquaresFourIcon,
   UsersThreeIcon,
@@ -16,6 +19,8 @@ export type NavItem = {
   description: string;
   /** Hidden unless the viewer holds this permission. */
   permission?: Permission;
+  /** Shows a live count next to the label. */
+  badge?: "approvals";
 };
 
 export const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
@@ -24,6 +29,14 @@ export const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/dashboard",          label: "Overview", icon: SquaresFourIcon, description: "Your day at a glance" },
       { href: "/dashboard/team",     label: "People",   icon: UsersThreeIcon,  description: "Directory & departments" },
+    ],
+  },
+  {
+    label: "Work",
+    items: [
+      { href: "/dashboard/leave",     label: "Leave",     icon: CalendarCheckIcon,     description: "Request time off, see who's away" },
+      { href: "/dashboard/expenses",  label: "Expenses",  icon: ReceiptIcon,           description: "Claim back work spending" },
+      { href: "/dashboard/approvals", label: "Approvals", icon: CheckSquareOffsetIcon, description: "Requests waiting on you", badge: "approvals" },
     ],
   },
   {

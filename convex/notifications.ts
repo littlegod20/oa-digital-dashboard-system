@@ -1,0 +1,65 @@
+import { v } from "convex/values";
+import { mutation, query, type MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { getViewer } from "./lib";
+
+type Tone = "info" | "success" | "warning" | "danger";
+
+/** Adds an in-app notification for one person. */
+export async function notify(
+  ctx: MutationCtx,
+  employeeId: Id<"employees">,
+  n: { title: string; body: string; href: string; tone?: Tone },
+) {
+  await ctx.db.insert("notifications", { employeeId, tone: "info", ...n, createdAt: Date.now() });
+}
+
+/** The viewer's latest notifications, newest first. */
+export const mine = query({
+  args: {},
+  handler: async (ctx) => {
+    const viewer = await getViewer(ctx);
+    if (!viewer) return { items: [], unread: 0 };
+    const rows = await ctx.db
+      .query("notifications")
+      .withIndex("by_employee", (q) => q.eq("employeeId", viewer._id))
+      .order("desc")
+      .take(30);
+    return {
+      items: rows.map((n) => ({
+        id: n._id,
+        title: n.title,
+        body: n.body,
+        href: n.href,
+        tone: n.tone,
+        read: Boolean(n.readAt),
+        createdAt: n.createdAt,
+      })),
+      unread: rows.filter((n) => !n.readAt).length,
+    };
+  },
+});
+
+export const markAllRead = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const viewer = await getViewer(ctx);
+    if (!viewer) return;
+    const unread = await ctx.db
+      .query("notifications")
+      .withIndex("by_employee", (q) => q.eq("employeeId", viewer._id))
+      .filter((q) => q.eq(q.field("readAt"), undefined))
+      .collect();
+    const now = Date.now();
+    for (const n of unread) await ctx.db.patch(n._id, { readAt: now });
+  },
+});
+
+export const dismiss = mutation({
+  args: { id: v.id("notifications") },
+  handler: async (ctx, { id }) => {
+    const viewer = await getViewer(ctx);
+    const n = await ctx.db.get(id);
+    if (viewer && n && n.employeeId === viewer._id) await ctx.db.delete(id);
+  },
+});

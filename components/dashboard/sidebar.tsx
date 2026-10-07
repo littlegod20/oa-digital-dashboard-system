@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { SidebarSimpleIcon, SignOutIcon, XIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { BrandMark } from "@/components/ui/brand-mark";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useRole } from "@/lib/role-context";
 import { SETTINGS_ITEM, isActivePath, visibleSections, type NavItem } from "./nav";
 
@@ -140,6 +142,8 @@ function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const pathname = usePathname();
   const active = isActivePath(pathname, item.href);
   const Icon = item.icon;
+  const approvals = useQuery(api.approvals.waitingCount, item.badge === "approvals" ? {} : "skip") ?? 0;
+  const count = item.badge === "approvals" ? approvals : 0;
   return (
     <Link
       href={item.href}
@@ -147,8 +151,14 @@ function NavLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
       title={collapsed ? item.label : undefined}
       aria-current={active ? "page" : undefined}
     >
-      <Icon size={20} weight={active ? "duotone" : "regular"} className="snav-icon shrink-0" />
-      {!collapsed && <span className="truncate">{item.label}</span>}
+      <span className="relative shrink-0">
+        <Icon size={20} weight={active ? "duotone" : "regular"} className="snav-icon" />
+        {collapsed && count > 0 && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-peach" />}
+      </span>
+      {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+      {!collapsed && count > 0 && (
+        <span className="tabular rounded-full bg-peach px-1.5 text-[10.5px] font-bold leading-[18px] text-white">{count}</span>
+      )}
     </Link>
   );
 }

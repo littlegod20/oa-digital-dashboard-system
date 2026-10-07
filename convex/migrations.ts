@@ -133,3 +133,23 @@ export const removeLegacyAccounts = internalMutation({
     return { removed };
   },
 });
+
+/**
+ * ONE-OFF (Phase 2): seeds the leave types if there are none yet. Idempotent.
+ * `npx convex run migrations:phase2Setup` (add `--prod` for production).
+ */
+export const phase2Setup = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    if (await ctx.db.query("leaveTypes").first()) return { seeded: 0 };
+    const types = [
+      { name: "Annual Leave", countsAgainstAllowance: true, paid: true },
+      { name: "Sick Leave", countsAgainstAllowance: false, paid: true },
+      { name: "Maternity / Paternity Leave", countsAgainstAllowance: false, paid: true },
+      { name: "Compassionate Leave", countsAgainstAllowance: false, paid: true },
+      { name: "Unpaid Leave", countsAgainstAllowance: false, paid: false },
+    ];
+    for (const [order, t] of types.entries()) await ctx.db.insert("leaveTypes", { ...t, active: true, order });
+    return { seeded: types.length };
+  },
+});
