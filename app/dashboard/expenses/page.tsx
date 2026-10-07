@@ -153,6 +153,54 @@ function ClaimsCard({ claims, showEmployee, canPay }: { claims: Claim[]; showEmp
   const label = (s: StatusFilter) => (s === 'all' ? 'All' : s === 'approved' ? 'To pay' : s[0].toUpperCase() + s.slice(1))
   const shown = filter === 'all' ? claims : claims.filter((c) => c.status === filter)
 
+  const details = (c: Claim) => (
+    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div>
+        <p className="eyebrow mb-2">Expenses</p>
+        <ul className="divide-y divide-line rounded-2xl bg-solid">
+          {c.items.map((i, idx) => (
+            <li key={idx} className="flex items-center gap-3 px-4 py-2.5 text-[12.5px]">
+              <span className="w-24 shrink-0 text-fg-3">{formatDate(i.date)}</span>
+              <span className="min-w-0 flex-1 truncate text-fg">{i.description}</span>
+              <span className="hidden text-fg-3 sm:inline">{i.category}</span>
+              <span className="tabular w-28 text-right font-semibold text-fg">{formatCurrency(i.amount, c.currency)}</span>
+            </li>
+          ))}
+        </ul>
+        {c.receipts.length > 0 && (
+          <div className="mt-3">
+            <AttachmentList attachments={c.receipts} />
+          </div>
+        )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          {!showEmployee && c.canWithdraw && (
+            <button onClick={() => setWithdrawing(c)} className="btn btn-secondary btn-sm">
+              Withdraw claim
+            </button>
+          )}
+          {canPay && c.status === 'approved' && (
+            <button
+              onClick={() => {
+                setPayError('')
+                setPaying(c)
+              }}
+              className="btn btn-primary btn-sm"
+            >
+              <CheckCircleIcon size={14} weight="bold" />
+              Mark as paid
+            </button>
+          )}
+        </div>
+      </div>
+      <div>
+        <p className="eyebrow mb-2">Approval</p>
+        <StepsTimeline steps={c.steps} autoApproved requestStatus={c.status} />
+        {c.paidBy && <p className="mt-3 text-[12.5px] text-fg-3">Paid by {c.paidBy}</p>}
+      </div>
+    </div>
+  )
+
+
   return (
     <Card flush>
       <div className="p-5 pb-4 md:p-6 md:pb-4">
@@ -166,101 +214,89 @@ function ClaimsCard({ claims, showEmployee, canPay }: { claims: Claim[]; showEmp
       {shown.length === 0 ? (
         <p className="border-t border-line px-6 py-10 text-center text-[13px] text-fg-3">Nothing here.</p>
       ) : (
-        <div className="overflow-x-auto border-t border-line">
-          <table className="w-full min-w-[760px] text-left text-[13px]">
-            <thead>
-              <tr className="text-[11.5px] text-fg-3">
-                <th className="px-6 py-3 font-medium">Submitted</th>
-                {showEmployee && <th className="px-3 py-3 font-medium">Claimant</th>}
-                <th className="px-3 py-3 font-medium">Claim</th>
-                <th className="px-3 py-3 text-right font-medium">Amount</th>
-                <th className="px-3 py-3 font-medium">Status</th>
-                <th className="px-3 py-3 font-medium">Step</th>
-                <th className="w-12 px-6 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line border-t border-line">
-              {shown.map((c) => (
-                <Fragment key={c.id}>
-                  <tr className="trow cursor-pointer" onClick={() => setOpen(open === c.id ? null : c.id)}>
-                    <td className="whitespace-nowrap px-6 py-3.5 text-fg-2">{formatDate(new Date(c.createdAt).toISOString())}</td>
-                    {showEmployee && (
+        <>
+          {/* Phones: stacked cards */}
+          <ul className="divide-y divide-line border-t border-line md:hidden">
+            {shown.map((c) => (
+              <li key={c.id}>
+                <button type="button" onClick={() => setOpen(open === c.id ? null : c.id)} className="trow flex w-full items-start gap-3 px-5 py-3.5 text-left" aria-expanded={open === c.id}>
+                  {showEmployee && <Avatar name={c.employee} size={34} />}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="truncate text-[13.5px] font-semibold text-fg">{c.title}</p>
+                      <p className="tabular shrink-0 text-[13.5px] font-semibold text-fg">{formatCurrency(c.total, c.currency)}</p>
+                    </div>
+                    <p className="mt-0.5 truncate text-[12px] text-fg-3">
+                      {showEmployee && `${c.employee} · `}
+                      {formatDate(new Date(c.createdAt).toISOString())} · {c.items.length} expense{c.items.length !== 1 ? 's' : ''}
+                      {c.receipts.length > 0 && ` · ${c.receipts.length} receipt${c.receipts.length !== 1 ? 's' : ''}`}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <RequestStatusBadge status={c.status} labelOverride={c.status === 'approved' ? 'Approved · to pay' : undefined} />
+                      {c.currentStep && c.status === 'pending' && <span className="text-[11.5px] text-fg-3">{c.currentStep}</span>}
+                    </div>
+                  </div>
+                  <CaretDownIcon size={14} className={cn('mt-1 shrink-0 text-fg-3 transition-transform', open === c.id && 'rotate-180')} />
+                </button>
+                {open === c.id && <div className="bg-muted px-5 py-4">{details(c)}</div>}
+              </li>
+            ))}
+          </ul>
+
+          {/* Tablet and up: table */}
+          <div className="hidden overflow-x-auto border-t border-line md:block">
+            <table className="w-full min-w-[760px] text-left text-[13px]">
+              <thead>
+                <tr className="text-[11.5px] text-fg-3">
+                  <th className="px-6 py-3 font-medium">Submitted</th>
+                  {showEmployee && <th className="px-3 py-3 font-medium">Claimant</th>}
+                  <th className="px-3 py-3 font-medium">Claim</th>
+                  <th className="px-3 py-3 text-right font-medium">Amount</th>
+                  <th className="px-3 py-3 font-medium">Status</th>
+                  <th className="px-3 py-3 font-medium">Step</th>
+                  <th className="w-12 px-6 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line border-t border-line">
+                {shown.map((c) => (
+                  <Fragment key={c.id}>
+                    <tr className="trow cursor-pointer" onClick={() => setOpen(open === c.id ? null : c.id)}>
+                      <td className="whitespace-nowrap px-6 py-3.5 text-fg-2">{formatDate(new Date(c.createdAt).toISOString())}</td>
+                      {showEmployee && (
+                        <td className="px-3 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar name={c.employee} size={30} />
+                            <span className="font-semibold text-fg">{c.employee}</span>
+                          </div>
+                        </td>
+                      )}
                       <td className="px-3 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar name={c.employee} size={30} />
-                          <span className="font-semibold text-fg">{c.employee}</span>
-                        </div>
+                        <p className="font-semibold text-fg">{c.title}</p>
+                        <p className="text-[11.5px] text-fg-3">
+                          {c.items.length} expense{c.items.length !== 1 ? 's' : ''} · {[...new Set(c.items.map((i) => i.category))].join(', ')}
+                          {c.receipts.length > 0 && ` · ${c.receipts.length} receipt${c.receipts.length !== 1 ? 's' : ''}`}
+                        </p>
                       </td>
-                    )}
-                    <td className="px-3 py-3.5">
-                      <p className="font-semibold text-fg">{c.title}</p>
-                      <p className="text-[11.5px] text-fg-3">
-                        {c.items.length} expense{c.items.length !== 1 ? 's' : ''} · {[...new Set(c.items.map((i) => i.category))].join(', ')}
-                        {c.receipts.length > 0 && ` · ${c.receipts.length} receipt${c.receipts.length !== 1 ? 's' : ''}`}
-                      </p>
-                    </td>
-                    <td className="tabular whitespace-nowrap px-3 py-3.5 text-right font-semibold text-fg">{formatCurrency(c.total, c.currency)}</td>
-                    <td className="px-3 py-3.5"><RequestStatusBadge status={c.status} labelOverride={c.status === 'approved' ? 'Approved · to pay' : undefined} /></td>
-                    <td className="px-3 py-3.5 text-fg-2">{c.status === 'paid' ? `Paid ${c.paidAt ? formatDate(new Date(c.paidAt).toISOString()) : ''}` : (c.currentStep ?? '–')}</td>
-                    <td className="px-6 py-3.5 text-right">
-                      <CaretDownIcon size={14} className={cn('inline text-fg-3 transition-transform', open === c.id && 'rotate-180')} />
-                    </td>
-                  </tr>
-                  {open === c.id && (
-                    <tr className="bg-muted">
-                      <td colSpan={showEmployee ? 7 : 6} className="px-6 py-4">
-                        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-                          <div>
-                            <p className="eyebrow mb-2">Expenses</p>
-                            <ul className="divide-y divide-line rounded-2xl bg-solid">
-                              {c.items.map((i, idx) => (
-                                <li key={idx} className="flex items-center gap-3 px-4 py-2.5 text-[12.5px]">
-                                  <span className="w-24 shrink-0 text-fg-3">{formatDate(i.date)}</span>
-                                  <span className="min-w-0 flex-1 truncate text-fg">{i.description}</span>
-                                  <span className="hidden text-fg-3 sm:inline">{i.category}</span>
-                                  <span className="tabular w-28 text-right font-semibold text-fg">{formatCurrency(i.amount, c.currency)}</span>
-                                </li>
-                              ))}
-                            </ul>
-                            {c.receipts.length > 0 && (
-                              <div className="mt-3">
-                                <AttachmentList attachments={c.receipts} />
-                              </div>
-                            )}
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              {!showEmployee && c.canWithdraw && (
-                                <button onClick={() => setWithdrawing(c)} className="btn btn-secondary btn-sm">
-                                  Withdraw claim
-                                </button>
-                              )}
-                              {canPay && c.status === 'approved' && (
-                                <button
-                                  onClick={() => {
-                                    setPayError('')
-                                    setPaying(c)
-                                  }}
-                                  className="btn btn-primary btn-sm"
-                                >
-                                  <CheckCircleIcon size={14} weight="bold" />
-                                  Mark as paid
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <p className="eyebrow mb-2">Approval</p>
-                            <StepsTimeline steps={c.steps} autoApproved />
-                            {c.paidBy && <p className="mt-3 text-[12.5px] text-fg-3">Paid by {c.paidBy}</p>}
-                          </div>
-                        </div>
+                      <td className="tabular whitespace-nowrap px-3 py-3.5 text-right font-semibold text-fg">{formatCurrency(c.total, c.currency)}</td>
+                      <td className="px-3 py-3.5"><RequestStatusBadge status={c.status} labelOverride={c.status === 'approved' ? 'Approved · to pay' : undefined} /></td>
+                      <td className="px-3 py-3.5 text-fg-2">{c.status === 'paid' ? `Paid ${c.paidAt ? formatDate(new Date(c.paidAt).toISOString()) : ''}` : (c.currentStep ?? '–')}</td>
+                      <td className="px-6 py-3.5 text-right">
+                        <CaretDownIcon size={14} className={cn('inline text-fg-3 transition-transform', open === c.id && 'rotate-180')} />
                       </td>
                     </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    {open === c.id && (
+                      <tr className="bg-muted">
+                        <td colSpan={showEmployee ? 7 : 6} className="px-6 py-4">
+                          {details(c)}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <ConfirmDialog

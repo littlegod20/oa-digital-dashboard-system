@@ -34,7 +34,8 @@ async function allowanceUse(ctx: QueryCtx, employeeId: Id<"employees">, year: st
 
 async function shapeRequest(ctx: QueryCtx, r: Doc<"leaveRequests">) {
   const [type, employee] = await Promise.all([ctx.db.get(r.leaveTypeId), ctx.db.get(r.employeeId)]);
-  const pendingStep = r.steps.find((s) => s.status === "pending");
+  // Only a request that is still pending is waiting on anyone (withdrawn ones keep their old steps).
+  const pendingStep = r.status === "pending" ? r.steps.find((s) => s.status === "pending") : undefined;
   return {
     id: r._id,
     employee: employee?.name ?? "Unknown",

@@ -156,7 +156,7 @@ function ProjectContent() {
       </div>
 
       {/* Tabs */}
-      <div role="tablist" aria-label="Project sections" className="segmented">
+      <div role="tablist" aria-label="Project sections" className="segmented flex-wrap max-sm:rounded-[20px]">
         {TABS.map((t) => (
           <button
             key={t.value}

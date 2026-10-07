@@ -36,6 +36,11 @@ export function ProjectCalendar({ tasks, onOpen }: { tasks: BoardTask[]; onOpen:
     byDay.set(day, [...(byDay.get(day) ?? []), t]);
   }
   const unscheduled = tasks.filter((t) => !t.dueDate && !t.startDate && t.status !== "done");
+  const monthKey = month.toISOString().slice(0, 7);
+  const monthTasks = [...byDay.entries()]
+    .filter(([day]) => day.startsWith(monthKey))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .flatMap(([day, ts]) => ts.map((task) => ({ day, task })));
 
   const shift = (n: number) => setMonth((m) => new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + n, 1)));
   const label = month.toLocaleDateString("en-GB", { timeZone: "UTC", month: "long", year: "numeric" });
@@ -71,7 +76,7 @@ export function ProjectCalendar({ tasks, onOpen }: { tasks: BoardTask[]; onOpen:
               <div
                 key={key}
                 className={cn(
-                  "min-h-[6.5rem] border-line p-1.5",
+                  "min-h-[3.75rem] border-line p-1 md:min-h-[6.5rem] md:p-1.5",
                   i % 7 !== 6 && "border-r",
                   i < 35 && "border-b",
                   !inMonth && "bg-muted/60",
@@ -85,7 +90,13 @@ export function ProjectCalendar({ tasks, onOpen }: { tasks: BoardTask[]; onOpen:
                 >
                   {d.getUTCDate()}
                 </span>
-                <div className="space-y-1">
+                {/* Phones: a dot per task; the agenda below lists them. */}
+                <div className="flex flex-wrap gap-1 px-1 md:hidden">
+                  {items.slice(0, 4).map((t) => (
+                    <span key={t.id} className="h-1.5 w-1.5 rounded-full" style={{ background: STATUS_FILL[t.status] }} />
+                  ))}
+                </div>
+                <div className="hidden space-y-1 md:block">
                   {items.slice(0, 3).map((t) => (
                     <button
                       key={t.id}
@@ -104,6 +115,29 @@ export function ProjectCalendar({ tasks, onOpen }: { tasks: BoardTask[]; onOpen:
             );
           })}
         </div>
+
+        {/* Phones: this month's tasks as a readable list */}
+        <ul className="divide-y divide-line border-t border-line md:hidden">
+          {monthTasks.length === 0 && <li className="px-5 py-6 text-center text-[12.5px] text-fg-3">No tasks this month.</li>}
+          {monthTasks.map(({ day, task: t }) => (
+            <li key={t.id}>
+              <button type="button" onClick={() => onOpen(t.id)} className="trow flex w-full items-center gap-3 px-5 py-3 text-left">
+                <span className={cn("w-12 shrink-0 text-center", day === today ? "text-brand" : "text-fg-2")}>
+                  <span className="block font-display text-[18px] font-semibold leading-none">{Number(day.slice(8))}</span>
+                  <span className="block text-[10.5px] uppercase">{WEEKDAYS[(new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7]}</span>
+                </span>
+                <span className="h-8 w-1 shrink-0 rounded-full" style={{ background: STATUS_FILL[t.status] }} />
+                <span className="min-w-0 flex-1">
+                  <span className={cn("block truncate text-[13px] font-semibold text-fg", t.status === "done" && "text-fg-3 line-through")}>{t.title}</span>
+                  <span className="block truncate text-[11.5px] text-fg-3">
+                    {t.key}
+                    {t.assignee ? ` · ${t.assignee}` : ""}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <aside className="card h-fit">

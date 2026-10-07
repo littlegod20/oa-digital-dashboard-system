@@ -33,7 +33,16 @@ export type StepView = {
 };
 
 /** Vertical timeline of approval steps. */
-export function StepsTimeline({ steps, autoApproved }: { steps: StepView[]; autoApproved?: boolean }) {
+export function StepsTimeline({
+  steps,
+  autoApproved,
+  requestStatus,
+}: {
+  steps: StepView[];
+  autoApproved?: boolean;
+  /** When the request was withdrawn, unfinished steps were never reached. */
+  requestStatus?: RequestStatus;
+}) {
   if (steps.length === 0) {
     return <p className="text-[12.5px] text-fg-3">{autoApproved ? "Approved automatically (CEO)." : "No approval needed."}</p>;
   }
@@ -61,7 +70,9 @@ export function StepsTimeline({ steps, autoApproved }: { steps: StepView[]; auto
               </p>
               <p className="text-fg-3">
                 {s.status === "pending"
-                  ? "Waiting"
+                  ? requestStatus === "withdrawn"
+                    ? "Not reached (withdrawn)"
+                    : "Waiting"
                   : skipped
                     ? "Not needed"
                     : `${done ? "Approved" : "Declined"}${s.decidedBy ? ` by ${s.decidedBy} on their behalf` : ""}${s.decidedAt ? ` · ${new Date(s.decidedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}`}

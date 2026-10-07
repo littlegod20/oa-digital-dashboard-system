@@ -25,7 +25,8 @@ const MAX_RECEIPTS = 5;
 
 async function shapeClaim(ctx: QueryCtx, c: Doc<"expenseClaims">) {
   const employee = await ctx.db.get(c.employeeId);
-  const pendingStep = c.steps.find((s) => s.status === "pending");
+  // Only a request that is still pending is waiting on anyone (withdrawn ones keep their old steps).
+  const pendingStep = c.status === "pending" ? c.steps.find((s) => s.status === "pending") : undefined;
   const paidBy = c.paidBy ? await ctx.db.get(c.paidBy) : null;
   return {
     id: c._id,

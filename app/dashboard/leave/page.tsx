@@ -187,69 +187,103 @@ function RequestTable({
 }) {
   const [open, setOpen] = useState<string | null>(null)
   if (requests.length === 0) return <p className="border-t border-line px-6 py-10 text-center text-[13px] text-fg-3">Nothing here.</p>
+
+  const details = (r: LeaveRequest) => (
+    <div className="grid gap-6 md:grid-cols-[1fr_1fr]">
+      <div>
+        <p className="eyebrow mb-1.5">Reason</p>
+        <p className="text-[13px] text-fg-2">{r.reason || '–'}</p>
+        {onWithdraw && r.canWithdraw && (
+          <button onClick={() => onWithdraw(r)} className="btn btn-secondary btn-sm mt-4">
+            Withdraw request
+          </button>
+        )}
+      </div>
+      <div>
+        <p className="eyebrow mb-2">Approval</p>
+        <StepsTimeline steps={r.steps} autoApproved={r.status === 'approved'} requestStatus={r.status} />
+      </div>
+    </div>
+  )
+
   return (
-    <div className="overflow-x-auto border-t border-line">
-      <table className="w-full min-w-[760px] text-left text-[13px]">
-        <thead>
-          <tr className="text-[11.5px] text-fg-3">
-            {showEmployee && <th className="px-6 py-3 font-medium">Employee</th>}
-            <th className={cn('py-3 font-medium', showEmployee ? 'px-3' : 'px-6')}>Type</th>
-            <th className="px-3 py-3 font-medium">Dates</th>
-            <th className="px-3 py-3 text-right font-medium">Days</th>
-            <th className="px-3 py-3 font-medium">Status</th>
-            <th className="px-3 py-3 font-medium">Current step</th>
-            <th className="px-3 py-3 font-medium">Submitted</th>
-            <th className="w-12 px-6 py-3" />
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line border-t border-line">
-          {requests.map((r) => (
-            <Fragment key={r.id}>
-              <tr className="trow cursor-pointer" onClick={() => setOpen(open === r.id ? null : r.id)}>
-                {showEmployee && (
-                  <td className="px-6 py-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar name={r.employee} size={30} />
-                      <span className="font-semibold text-fg">{r.employee}</span>
-                    </div>
-                  </td>
-                )}
-                <td className={cn('py-3.5 font-semibold text-fg', showEmployee ? 'px-3' : 'px-6')}>{r.type}</td>
-                <td className="whitespace-nowrap px-3 py-3.5 text-fg-2">{formatDateRange(r.startDate, r.endDate)}</td>
-                <td className="tabular px-3 py-3.5 text-right text-fg">{r.days}</td>
-                <td className="px-3 py-3.5"><RequestStatusBadge status={r.status} /></td>
-                <td className="px-3 py-3.5 text-fg-2">{r.currentStep ?? '–'}</td>
-                <td className="whitespace-nowrap px-3 py-3.5 text-fg-3">{formatRelativeDate(new Date(r.createdAt).toISOString())}</td>
-                <td className="px-6 py-3.5 text-right">
-                  <CaretDownIcon size={14} className={cn('inline text-fg-3 transition-transform', open === r.id && 'rotate-180')} />
-                </td>
-              </tr>
-              {open === r.id && (
-                <tr className="bg-muted">
-                  <td colSpan={showEmployee ? 8 : 7} className="px-6 py-4">
-                    <div className="grid gap-6 md:grid-cols-[1fr_1fr]">
-                      <div>
-                        <p className="eyebrow mb-1.5">Reason</p>
-                        <p className="text-[13px] text-fg-2">{r.reason || '–'}</p>
-                        {onWithdraw && r.canWithdraw && (
-                          <button onClick={() => onWithdraw(r)} className="btn btn-secondary btn-sm mt-4">
-                            Withdraw request
-                          </button>
-                        )}
+    <>
+      {/* Phones: stacked cards */}
+      <ul className="divide-y divide-line border-t border-line md:hidden">
+        {requests.map((r) => (
+          <li key={r.id}>
+            <button type="button" onClick={() => setOpen(open === r.id ? null : r.id)} className="trow flex w-full items-start gap-3 px-5 py-3.5 text-left" aria-expanded={open === r.id}>
+              {showEmployee && <Avatar name={r.employee} size={34} />}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="truncate text-[13.5px] font-semibold text-fg">{showEmployee ? r.employee : r.type}</p>
+                  <RequestStatusBadge status={r.status} />
+                </div>
+                <p className="mt-0.5 text-[12px] text-fg-2">
+                  {showEmployee && `${r.type} · `}
+                  {formatDateRange(r.startDate, r.endDate)} · {r.days} day{r.days !== 1 ? 's' : ''}
+                </p>
+                <p className="mt-0.5 truncate text-[11.5px] text-fg-3">
+                  {r.currentStep ?? `Submitted ${formatRelativeDate(new Date(r.createdAt).toISOString()).toLowerCase()}`}
+                </p>
+              </div>
+              <CaretDownIcon size={14} className={cn('mt-1 shrink-0 text-fg-3 transition-transform', open === r.id && 'rotate-180')} />
+            </button>
+            {open === r.id && <div className="bg-muted px-5 py-4">{details(r)}</div>}
+          </li>
+        ))}
+      </ul>
+
+      {/* Tablet and up: table */}
+      <div className="hidden overflow-x-auto border-t border-line md:block">
+        <table className="w-full min-w-[760px] text-left text-[13px]">
+          <thead>
+            <tr className="text-[11.5px] text-fg-3">
+              {showEmployee && <th className="px-6 py-3 font-medium">Employee</th>}
+              <th className={cn('py-3 font-medium', showEmployee ? 'px-3' : 'px-6')}>Type</th>
+              <th className="px-3 py-3 font-medium">Dates</th>
+              <th className="px-3 py-3 text-right font-medium">Days</th>
+              <th className="px-3 py-3 font-medium">Status</th>
+              <th className="px-3 py-3 font-medium">Current step</th>
+              <th className="px-3 py-3 font-medium">Submitted</th>
+              <th className="w-12 px-6 py-3" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line border-t border-line">
+            {requests.map((r) => (
+              <Fragment key={r.id}>
+                <tr className="trow cursor-pointer" onClick={() => setOpen(open === r.id ? null : r.id)}>
+                  {showEmployee && (
+                    <td className="px-6 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <Avatar name={r.employee} size={30} />
+                        <span className="font-semibold text-fg">{r.employee}</span>
                       </div>
-                      <div>
-                        <p className="eyebrow mb-2">Approval</p>
-                        <StepsTimeline steps={r.steps} autoApproved={r.status === 'approved'} />
-                      </div>
-                    </div>
+                    </td>
+                  )}
+                  <td className={cn('py-3.5 font-semibold text-fg', showEmployee ? 'px-3' : 'px-6')}>{r.type}</td>
+                  <td className="whitespace-nowrap px-3 py-3.5 text-fg-2">{formatDateRange(r.startDate, r.endDate)}</td>
+                  <td className="tabular px-3 py-3.5 text-right text-fg">{r.days}</td>
+                  <td className="px-3 py-3.5"><RequestStatusBadge status={r.status} /></td>
+                  <td className="px-3 py-3.5 text-fg-2">{r.currentStep ?? '–'}</td>
+                  <td className="whitespace-nowrap px-3 py-3.5 text-fg-3">{formatRelativeDate(new Date(r.createdAt).toISOString())}</td>
+                  <td className="px-6 py-3.5 text-right">
+                    <CaretDownIcon size={14} className={cn('inline text-fg-3 transition-transform', open === r.id && 'rotate-180')} />
                   </td>
                 </tr>
-              )}
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
-    </div>
+                {open === r.id && (
+                  <tr className="bg-muted">
+                    <td colSpan={showEmployee ? 8 : 7} className="px-6 py-4">
+                      {details(r)}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   )
 }
 
